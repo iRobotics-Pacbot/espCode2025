@@ -1,13 +1,7 @@
 #include "UDPPeer.h"
 #include <ESPmDNS.h>
 
-UDPPeer::UDPPeer(const char *peerIP, uint16_t peerPort, QueueHandle_t *sendBuf, QueueHandle_t *recvBuf, size_t ticksToWait) {
-    this->peerIP = peerIP;
-    this->peerPort = peerPort;
-    this->sendBuf = sendBuf;
-    this->recvBuf = recvBuf;
-    this->ticksToWait = ticksToWait;
-
+UDPPeer::UDPPeer(odom& odom, tof& tof, mclPose& mclpose) : odomRef(odom), tofRef(tof), mclposeRef(mclpose) {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.begin(ssid, password);
@@ -28,7 +22,7 @@ UDPPeer::UDPPeer(const char *peerIP, uint16_t peerPort, QueueHandle_t *sendBuf, 
         return;
     }
 
-    udp.begin(resolvedIP, peerPort);
+    udp.begin(resolvedIP, PORT);
     Serial.println("\nUDP socket initialized");
 }
 
@@ -43,24 +37,32 @@ void UDPPeer::Update() {
 
 void UDPPeer::sendData() {
     dataToMCL dout;
-    if (xQueueReceive(*sendBuf, &dout, ticksToWait)) {
-        //Serial.println("pop smth from send Q");
-        udp.beginPacket(peerIP, peerPort);
-        udp.write((uint8_t*)&dout, sizeof(dataToMCL));
-        udp.endPacket();
-        Serial.println("sent packet");
-    } else {
-        //Serial.println("send Q pop fail");
-    }
+    xSemaphoreTake(odomRef.lock, portMAX_DELAY);
+    dout.x = odomRef.x;
+    dout.y = odomRef.y;
+    dout.vx = odomRef.vx;
+    dout.vy = odomRef.vy;
+    xSemaphoreGive(odomRef.lock);
+    udp.beginPacket(LAPTOP_IP, PORT);
+    udp.write((uint8_t*)&dout, sizeof(dataToMCL));
+    udp.endPacket();
+    Serial.println("sent packet");
 }
 
 void UDPPeer::receiveData() {
-    dataToMCL din;
+    dataFromMCL din;
     int packetSize = udp.parsePacket();
     if (packetSize) {
-        udp.read((uint8_t*)&din, sizeof(dataToMCL));
+        udp.read((uint8_t*)&din, sizeof(dataFromMCL));
         Serial.println("rcv packet");
-        xQueueOverwrite(*recvBuf, &din);
+        xSemaphoreTake(mclposeRef.lock, portMAX_DELAY);
+        mclposeRef.x = din.x;
+        mclposeRef.y = din.y;
+        mclposeRef.vx = din.vx;
+        mclposeRef.vy = din.vy;
+        mclposeRef.oldX = din.oldX;
+        mclposeRef.oldY = din.oldY;
+        xSemaphoreGive(mclposeRef.lock);
     }
 }
 

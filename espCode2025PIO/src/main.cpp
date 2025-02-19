@@ -5,24 +5,27 @@
 
 
 //global vars that each task will atomically interact with
-std::atomic<odom> odom_data;
-std::atomic<tof> tof_data;
-std::atomic<mclPose> mcl_pose_data;
-std::atomic<velos> velo_data;
+odom odom_g;
+tof tof_g;
+mclPose mcl_g;
+velos velo_g;
 
-void odomPoller();
-void tofPoller();
-void refreshUDP();
-void refreshControl(); //does this drive the motors?
-void refreshPLL();
+
+
+//class task instantiations 
+UDPPeer *myPeer;
+//....
 
 TaskInfo Tasks[] = {
-  {odomPoller, "odomPoller", 512, 1, pdMS_TO_TICKS(1)},
-  {tofPoller, "tofPoller", 512, 1, pdMS_TO_TICKS(1)},
-  {refreshUDP, "refreshUDP", 2048, 1, pdMS_TO_TICKS(1)},
-  {refreshControl, "refreshControl", 4096, 1, pdMS_TO_TICKS(1)},
-  {refreshPLL, "refreshPLL", 4096, 1, pdMS_TO_TICKS(1)},
-}; 
+  {[]() { myPeer->Update(); }, "refreshUDP", 2048, 1, pdMS_TO_TICKS(1)}
+
+//list other tasks here in array
+
+
+
+
+};
+
 
 void genericTask(void *param) {
     TaskInfo *task = (TaskInfo *)param;
@@ -34,6 +37,10 @@ void genericTask(void *param) {
 
 
 void setup() {
+  //task class instantiation
+  myPeer = new UDPPeer(odom_g, tof_g, mcl_g);
+
+  //task kickoff
   uint8_t numTasks = sizeof(Tasks) / sizeof(Tasks[0]);
   for (uint8_t i = 0; i < numTasks; i++) { 
     xTaskCreate(genericTask, Tasks[i].name, Tasks[i].stackSize, (void*)&Tasks[i], Tasks[i].priority, NULL);
@@ -41,10 +48,4 @@ void setup() {
 }
 void loop() {;}
 
-
-void odomPoller(){};
-void tofPoller(){};
-void refreshUDP(){};
-void refreshControl(){}; //does this drive the motors?
-void refreshPLL(){};
 

@@ -1,55 +1,59 @@
-#include "Encoder.cpp"
+#include <cmath>
+#include <Arduino.h>
+#include <Encoder.h>
+
 
 class PLL{
-
+ 
 private:
+
+    //float sim_dt = 1/20000;
+
+    float bandwidth;
+    float last_update_time;
+    float pll_kp;
+    float pll_ki;
+    float last_measurement;
+    float pll_pos;
+    float pll_vel;
+    float pll_acc;
+    
     Encoder encoder;
-    double bandwidth;
-    double sim_dt = 1/20000;
 
 public:
 
-    PLL(Encoder encoder, double pll_bandwidth){
-        this->encoder = encoder;
+    PLL(float pll_bandwidth){
+
         bandwidth = pll_bandwidth;
+        last_update_time = 0;
+        pll_kp = 2*bandwidth;
+        pll_ki = 0.25*pll_kp*pll_kp;
 
-        //Initialize encoder values
-        encoder.set_last_update_time(0);
-        encoder.set_pll_kp(2*bandwidth);
-        encoder.set_pll_ki(0.25*(this->encoder.get_kp())*(this->encoder.get_kp()));
+        pll_pos = 0;
+        pll_vel = 0;
+        pll_acc = 0;
 
-        encoder.set_pll_pos(0);
-        encoder.set_pll_vel(0);
-        encoder.set_pll_acc(0);
-    }
-
-
-    void estimator(double measurement){
-
-        encoder.increment_pos(sim_dt*(encoder.get_vel()));
-
-        //Importing cmath not working so used a couple workarounds. Will try to figure out getting cmath to work
-        int floor = (int)(encoder.get_pos());
-        double delta_pos = measurement - floor;
-
-        encoder.increment_pos(sim_dt*(encoder.get_kp())*delta_pos);
-        encoder.increment_vel(sim_dt*(encoder.get_ki())*delta_pos);
-
-
-        double margin = 0.5*sim_dt*encoder.get_ki();
-        
-        if(encoder.get_vel() <= margin && encoder.get_vel() >= 0){
-            encoder.set_pll_vel(0);
-        }
-        if(encoder.get_vel() >= (margin*-1) && encoder.get_vel() <= 0){
-            encoder.set_pll_vel(0);
-        }
-
-        encoder.set_last_measurement(measurement);
 
     }
 
 
+    void update(float dt){
+
+        int32_t measurement = encoder.read();
+        pll_pos = pll_pos + (dt*pll_vel);
+
+        float delta_pos = measurement - floor(pll_pos);
+
+        pll_pos = pll_pos + (dt * pll_kp * delta_pos);
+        pll_vel = pll_vel + (dt * pll_ki * delta_pos);
+
+        float margin = 0.5*dt*pll_ki;
+        if(fabs(pll_vel <= margin)){
+            pll_vel = 0;
+        }
+
+        last_measurement = measurement;
+    }
 
 
 };

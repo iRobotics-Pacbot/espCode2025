@@ -1,4 +1,6 @@
+// ***NOT USING THIS ANYMORE, USING ARDUINO ENCODER LIBRARY INSTEAD***
 
+/*
 class Encoder{
 
 private:
@@ -79,3 +81,5 @@ public:
 
     
 };
+
+*/;

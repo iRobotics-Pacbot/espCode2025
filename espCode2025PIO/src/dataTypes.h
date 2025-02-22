@@ -1,70 +1,57 @@
 #ifndef DATATYPES_H
 #define DATATYPES_H
 
-struct odom {
-    xSemaphoreHandle lock;
+struct Odom {
     float x;
     float y;
     float vx;
     float vy;
-    size_t ct;
+    float stdvx;
+    float stdvy;
 
-    odom(){
-        vSemaphoreCreateBinary(lock);
-    }
 };
 
-struct tof {
-    xSemaphoreHandle lock;
-    float tofA;
-    float tofB;
-    float tofC;
-    size_t ct;
-
-    tof(){
-        vSemaphoreCreateBinary(lock);
-    }
+constexpr uint8_t TOF_COUNT = 6;
+struct TOF {
+    float distances[TOF_COUNT];
+    float stds[TOF_COUNT];
 };
 
-struct mclPose {
-    xSemaphoreHandle lock;
+
+template <typename T> class SafeStruct {
+    private:
+        xSemaphoreHandle lock;
+        T data;
+        // #ifdef DEBUG
+        // size_t ct; 
+        // #endif
+
+    public:
+        SafeStruct() {vSemaphoreCreateBinary(lock);}
+        T get() {xSemaphoreTake(lock, portMAX_DELAY); T out = data; xSemaphoreGive(lock); return out;}
+        set(T data) {xSemaphoreTake(lock, portMAX_DELAY); this->data = data; xSemaphoreGive(lock);}
+};
+
+struct MclPose {
     float x;
     float y;
     float vx;
     float vy;
     float oldX;
     float oldY;
-
-    mclPose(){
-        vSemaphoreCreateBinary(lock);
-    }
 };
 
-struct velos {
-    xSemaphoreHandle lock;
+struct Velos {
     float vx;
     float vy;
-
-    velos(){
-        vSemaphoreCreateBinary(lock);
-    }
 };
-
-
-// struct TaskInfo{
-//     void (*taskFunc)();
-//     const char *name;
-//     uint16_t stackSize;
-//     UBaseType_t priority;
-//     uint16_t delayMs;     
-// };
 
 struct TaskInfo {
     std::function<void()> taskFunc;
     const char *name;
     uint16_t stackSize;
     UBaseType_t priority;
-    TickType_t delayMs;
+    TickType_t delay;
 };
 
 

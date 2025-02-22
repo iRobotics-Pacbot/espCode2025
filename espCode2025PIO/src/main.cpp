@@ -4,13 +4,6 @@
 #include "UDPPeer.h"
 
 
-//global vars that each task will atomically interact with
-odom odom_g;
-tof tof_g;
-mclPose mcl_g;
-velos velo_g;
-
-
 
 //class task instantiations 
 UDPPeer *myPeer;
@@ -31,14 +24,23 @@ void genericTask(void *param) {
     TaskInfo *task = (TaskInfo *)param;
     while (1) {
         task->taskFunc();
-        vTaskDelay(pdMS_TO_TICKS(task->delayMs));
+        vTaskDelay(task->delay);
     }
 }
 
 
 void setup() {
+  //Safestruct instantiation 
+  SafeStruct<Odom> odoStruct;
+  SafeStruct<TOF> tofStruct;
+  SafeStruct<MclPose> mclPoseStruct;
+  SafeStruct<Velos> veloStruct; 
+
   //task class instantiation
-  myPeer = new UDPPeer(odom_g, tof_g, mcl_g);
+  myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct);
+
+  
+  
 
   //task kickoff
   uint8_t numTasks = sizeof(Tasks) / sizeof(Tasks[0]);
@@ -47,5 +49,6 @@ void setup() {
   }
 }
 void loop() {;}
+
 
 

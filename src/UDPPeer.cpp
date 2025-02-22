@@ -1,7 +1,7 @@
 #include "UDPPeer.h"
 #include <ESPmDNS.h>
 
-UDPPeer::UDPPeer(odom& odom, tof& tof, mclPose& mclpose) : odomRef(odom), tofRef(tof), mclposeRef(mclpose) {
+UDPPeer::UDPPeer(SafeStruct<Odom>& odom, SafeStruct<TOF>& tof, SafeStruct<MclPose>& mclpose) : odomRef(odom), tofRef(tof), mclposeRef(mclpose) {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.begin(ssid, password);
@@ -36,33 +36,37 @@ void UDPPeer::Update() {
 }
 
 void UDPPeer::sendData() {
-    dataToMCL dout;
-    xSemaphoreTake(odomRef.lock, portMAX_DELAY);
-    dout.x = odomRef.x;
-    dout.y = odomRef.y;
-    dout.vx = odomRef.vx;
-    dout.vy = odomRef.vy;
-    xSemaphoreGive(odomRef.lock);
+    DataToMCL dout;
+    Odom odom;
+    TOF tof;
+    odom = odomRef.get();
+    tof = tofRef.get();
+    dout.set(tof.distances, tof.stds, odom.x, odom.y, odom.vx, odom.vy, odom.stdvx, odom.stdvy);
     udp.beginPacket(LAPTOP_IP, PORT);
-    udp.write((uint8_t*)&dout, sizeof(dataToMCL));
+    udp.write((uint8_t*)&dout, sizeof(DataToMCL));
     udp.endPacket();
     Serial.println("sent packet");
 }
 
 void UDPPeer::receiveData() {
-    dataFromMCL din;
+    Packet packet;
     int packetSize = udp.parsePacket();
-    if (packetSize) {
-        udp.read((uint8_t*)&din, sizeof(dataFromMCL));
+    if (packetSize <= sizeof(Packet)) {
+        udp.read(reinterpret_cast<uint8_t*>(&packet), packetSize);
         Serial.println("rcv packet");
-        xSemaphoreTake(mclposeRef.lock, portMAX_DELAY);
-        mclposeRef.x = din.x;
-        mclposeRef.y = din.y;
-        mclposeRef.vx = din.vx;
-        mclposeRef.vy = din.vy;
-        mclposeRef.oldX = din.oldX;
-        mclposeRef.oldY = din.oldY;
-        xSemaphoreGive(mclposeRef.lock);
+        switch(packet.type) {
+            case 'r':
+                DataFromMCL* din = reinterpret_cast<DataFromMCL*>(&packet.buf);
+                MclPose mclPose;
+                mclPose.x = din->x;
+                mclPose.y = din->y;
+                mclPose.vx = din->vx;
+                mclPose.vy = din->vy;
+                mclPose.oldX = din->oldX;
+                mclPose.oldY = din->oldY;
+                mclposeRef.set(mclPose);
+                break;
+        }
     }
 }
 

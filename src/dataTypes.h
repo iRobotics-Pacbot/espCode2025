@@ -20,7 +20,7 @@ template <typename T> class SafeStruct {
         // #endif
 
     public:
-        SafeStruct() {vSemaphoreCreateBinary(lock);}
+        SafeStruct() {lock = xSemaphoreCreateMutex();}
         T get() {xSemaphoreTake(lock, portMAX_DELAY); T out = data; xSemaphoreGive(lock); return out;}
         void set(T data) {xSemaphoreTake(lock, portMAX_DELAY); this->data = data; xSemaphoreGive(lock);}
 };

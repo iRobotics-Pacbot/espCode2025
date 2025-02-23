@@ -13,13 +13,15 @@ TOF *tof;
 Odo *odo;
 //....
 
-TaskInfo Tasks[] = {
-  {[]() { myPeer->Update(); }, "refreshUDP", 2048, 1, pdMS_TO_TICKS(1)}
+void updTask(void* param)
+{
+  UDPPeer *myPeer = (UDPPeer*) param;
 
-//list other tasks here in array
-
-
-};
+  while(1) {
+    myPeer->Update();
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
 
 void odoTask(void* param)
 {
@@ -45,13 +47,6 @@ void tofTask(void* param)
 }
 
 
-void genericTask(void *param) {
-    TaskInfo *task = (TaskInfo *)param;
-    while (1) {
-        task->taskFunc();
-        vTaskDelay(task->delay);
-    }
-}
 
 
 void setup() {
@@ -74,16 +69,10 @@ void setup() {
   odo = new Odo(odoStruct);
 
   
-  
+  xTaskCreate(updTask, "UDP Task", 2048, (void*)myPeer, 1, NULL);
   xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
   xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
 
-  //task kickoff
-  // @todo remove this
-  uint8_t numTasks = sizeof(Tasks) / sizeof(Tasks[0]);
-  for (uint8_t i = 0; i < numTasks; i++) { 
-    xTaskCreate(genericTask, Tasks[i].name, Tasks[i].stackSize, (void*)&Tasks[i], Tasks[i].priority, NULL);
-  }
 }
 void loop() {;}
 

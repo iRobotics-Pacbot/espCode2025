@@ -1,7 +1,7 @@
 #include "UDPPeer.h"
 #include <ESPmDNS.h>
 
-UDPPeer::UDPPeer(SafeStruct<Odom>& odom, SafeStruct<TOF>& tof, SafeStruct<MclPose>& mclpose) : odomRef(odom), tofRef(tof), mclposeRef(mclpose) {
+UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose) : odomRef(odom), tofRef(tof), mclposeRef(mclpose) {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.begin(ssid, password);
@@ -37,11 +37,11 @@ void UDPPeer::Update() {
 
 void UDPPeer::sendData() {
     DataToMCL dout;
-    Odom odom;
-    TOF tof;
+    OdoPose odom;
+    TOF_t tof;
     odom = odomRef.get();
     tof = tofRef.get();
-    dout.set(tof.distances, tof.stds, odom.x, odom.y, odom.vx, odom.vy, odom.stdvx, odom.stdvy);
+    dout.set(tof.distances, tof.stds, odom.pos.x, odom.pos.y, odom.vel.x, odom.vel.y, odom.vel_std.x, odom.vel_std.y);
     udp.beginPacket(LAPTOP_IP, PORT);
     udp.write((uint8_t*)&dout, sizeof(DataToMCL));
     udp.endPacket();

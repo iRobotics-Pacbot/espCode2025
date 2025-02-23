@@ -7,7 +7,7 @@
 
 class UDPPeer {
 public:
-    UDPPeer(SafeStruct<Odom>& odom, SafeStruct<TOF>& tof, SafeStruct<MclPose>& mclpose);
+    UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose);
 
     ~UDPPeer();
 
@@ -16,15 +16,15 @@ public:
 
 private:
     WiFiUDP udp;
-    SafeStruct<Odom>& odomRef;
-    SafeStruct<TOF>& tofRef;
+    SafeStruct<OdoPose>& odomRef;
+    SafeStruct<TOF_t>& tofRef;
     SafeStruct<MclPose>& mclposeRef;
 
-    static constexpr char* LAPTOP_IP = "192.168.0.101";
+    static constexpr const char* LAPTOP_IP = "192.168.0.101";
     static constexpr uint16_t PORT = 8089;
-    static constexpr char* ssid = "Pacbot_Server";
-    static constexpr char* password = "Pacbot#2024!";
-    static constexpr char* mdns = "uiucpacbot";
+    static constexpr const char* ssid = "Pacbot_Server";
+    static constexpr const char* password = "Pacbot#2024!";
+    static constexpr const char* mdns = "uiucpacbot";
     static constexpr size_t MAX_PACKET_SIZE = 1024;
 
     struct Packet {

@@ -30,7 +30,7 @@ private:
         pll_vel += dt * pll_ki * delta_pos;
 
         float margin = 0.5*dt*pll_ki;
-        if(fabs(pll_vel <= margin)){
+        if(fabs(pll_vel) <= margin){
             pll_vel = 0;
         }
     }

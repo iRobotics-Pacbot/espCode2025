@@ -62,9 +62,10 @@ void setup() {
   SafeStruct<TOF_t> tofStruct;
   SafeStruct<MclPose> mclPoseStruct;
   SafeStruct<Velos> veloStruct; 
+  SafeStruct<Path> pathStruct;
 
   //task class instantiation
-  myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct);
+  myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
   tof = new TOF(tofStruct);
   odo = new Odo(odoStruct);
 

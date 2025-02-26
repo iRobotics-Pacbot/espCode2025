@@ -7,7 +7,7 @@
 
 class UDPPeer {
 public:
-    UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose);
+    UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose, SafeStruct<Path>& pathRef);
 
     ~UDPPeer();
 
@@ -19,6 +19,7 @@ private:
     SafeStruct<OdoPose>& odomRef;
     SafeStruct<TOF_t>& tofRef;
     SafeStruct<MclPose>& mclposeRef;
+    SafeStruct<Path>& pathRef;
 
     static constexpr const char* LAPTOP_IP = "192.168.0.101";
     static constexpr uint16_t PORT = 8089;
@@ -63,6 +64,11 @@ private:
         float vy = 0;
         float oldX = 0;
         float oldY = 0;
+    };
+
+    struct DataFromPathPlanner {
+        float targetX;
+        float targetY;
     };
 
     void sendData();

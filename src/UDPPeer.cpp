@@ -1,7 +1,7 @@
 #include "UDPPeer.h"
 #include <ESPmDNS.h>
 
-UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose) : odomRef(odom), tofRef(tof), mclposeRef(mclpose) {
+UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose, SafeStruct<Path>& path) : odomRef(odom), tofRef(tof), mclposeRef(mclpose), pathRef(path){
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.begin(ssid, password);
@@ -55,7 +55,7 @@ void UDPPeer::receiveData() {
         udp.read(reinterpret_cast<uint8_t*>(&packet), packetSize);
         Serial.println("rcv packet");
         switch(packet.type) {
-            case 'r':
+            case 'a':
                 DataFromMCL* din = reinterpret_cast<DataFromMCL*>(&packet.buf);
                 MclPose mclPose;
                 mclPose.x = din->x;
@@ -66,6 +66,12 @@ void UDPPeer::receiveData() {
                 mclPose.oldY = din->oldY;
                 mclposeRef.set(mclPose);
                 break;
+            case 'b':
+                DataFromPathPlanner* bdin = reinterpret_cast<DataFromPathPlanner*>(&packet.buf);
+                Path path;
+                path.targetX = bdin->targetX;
+                path.targetY = bdin->targetY;
+                pathRef.set(path);
         }
     }
 }

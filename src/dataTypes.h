@@ -34,6 +34,11 @@ struct MclPose {
     float oldY;
 };
 
+struct Path {
+    float targetX;
+    float targetY;
+};
+
 struct Velos {
     float vx;
     float vy;

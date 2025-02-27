@@ -16,7 +16,7 @@ Motor::Motor(uint8_t ph, uint8_t en): ph(ph), en(en) {
 }
 
 void Motor::setThrottle(double throttle) {
-    throttle = std::min(std::max(throttle,(double) -1), (double)1);
+    throttle = min(max(throttle,(double) -1), (double)1);
     int16_t pwm_duty = abs(throttle) * 0x7fffp0;
     if (throttle > 0) {
         digitalWrite(ph, HIGH);

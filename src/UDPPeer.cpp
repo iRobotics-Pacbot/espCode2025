@@ -1,5 +1,9 @@
 #include "UDPPeer.h"
 #include <ESPmDNS.h>
+using namespace std;
+
+
+#define DEBUG
 
 UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose, SafeStruct<Path>& path) : odomRef(odom), tofRef(tof), mclposeRef(mclpose), pathRef(path){
     WiFi.mode(WIFI_STA);
@@ -7,7 +11,9 @@ UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<M
     WiFi.begin(ssid, password);
     
     while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
+        #ifdef DEBUG
+            Serial.print(".");
+        #endif
         delay(500); 
     }
     
@@ -16,14 +22,18 @@ UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<M
     IPAddress resolvedIP;
     if (MDNS.begin(mdns)) {
         resolvedIP = MDNS.IP(0); 
-        Serial.printf("Resolved IP: %s\n", resolvedIP.toString().c_str());
+        #ifdef DEBUG
+            Serial.printf("Resolved IP: %s\n", resolvedIP.toString().c_str());
+        #endif
     } else {
         Serial.println("MDNS query failed!");
         return;
     }
 
     udp.begin(resolvedIP, PORT);
-    Serial.println("\nUDP socket initialized");
+    #ifdef DEBUG
+        Serial.println("\nUDP socket initialized");
+    #endif
 }
 
 UDPPeer::~UDPPeer() {
@@ -31,31 +41,63 @@ UDPPeer::~UDPPeer() {
 }
 
 void UDPPeer::Update() {
-    sendData();
+    sendMCLData();
     receiveData();
 }
 
-void UDPPeer::sendData() {
-    DataToMCL dout;
+void UDPPeer::sendMCLData() {
     OdoPose odom;
     TOF_t tof;
     odom = odomRef.get();
     tof = tofRef.get();
-    dout.set(tof.distances, tof.stds, odom.pos.x, odom.pos.y, odom.vel.x, odom.vel.y, odom.vel_std.x, odom.vel_std.y);
+    struct {
+        char packetID;
+        OdoPose odom;
+        TOF_t tof;
+    } dout;
+    dout.packetID = 'a';
+    dout.odom = odom;
+    dout.tof = tof;
+    sendGeneric(&dout, sizeof(dout));
+}
+
+void UDPPeer::sendString(char* string, size_t len) {
+    struct {
+        char packetID;
+        char string[64];
+    } dout;
+    string[63] = 0; //just make sure we got that null term
+    dout.packetID = 'b';
+    strncpy(dout.string, string, len);
+    sendGeneric(&dout, len + 1);
+}
+
+void UDPPeer::sendGeneric(void* structToSend, size_t structSize) {
+    if (!structToSend) {
+        #ifdef DEBUG
+            Serial.print("asked to send null");
+        #endif
+        return;
+    }
     udp.beginPacket(LAPTOP_IP, PORT);
-    udp.write((uint8_t*)&dout, sizeof(DataToMCL));
+    udp.write((uint8_t*)structToSend, structSize);
     udp.endPacket();
-    Serial.println("sent packet");
+    #ifdef DEBUG
+        Serial.println("sent packet");
+    #endif
 }
 
 void UDPPeer::receiveData() {
     Packet packet;
     int packetSize = udp.parsePacket();
-    if (packetSize <= sizeof(Packet)) {
+    if (packetSize && packetSize <= sizeof(Packet)) {
         udp.read(reinterpret_cast<uint8_t*>(&packet), packetSize);
-        Serial.println("rcv packet");
+        udp.flush();
         switch(packet.type) {
-            case 'a':
+            case 'a': {
+                #ifdef DEBUG
+                    Serial.println("recv mcl data");
+                #endif
                 DataFromMCL* din = reinterpret_cast<DataFromMCL*>(&packet.buf);
                 MclPose mclPose;
                 mclPose.x = din->x;
@@ -66,12 +108,24 @@ void UDPPeer::receiveData() {
                 mclPose.oldY = din->oldY;
                 mclposeRef.set(mclPose);
                 break;
-            case 'b':
-                DataFromPathPlanner* bdin = reinterpret_cast<DataFromPathPlanner*>(&packet.buf);
+            }
+            case 'b': {
+                #ifdef DEBUG
+                    Serial.println("recv path data");
+                #endif
+                DataFromPathPlanner* din = reinterpret_cast<DataFromPathPlanner*>(&packet.buf);
                 Path path;
-                path.targetX = bdin->targetX;
-                path.targetY = bdin->targetY;
+                path.targetX = din->targetX;
+                path.targetY = din->targetY;
                 pathRef.set(path);
+                break;
+            }
+            default : { //gonna treat it as a char array and print
+                #ifdef DEBUG
+                    Serial.printf("NonstandardPackedID:%c Contents:%.*s\n", packet.type, packetSize-1, packet.buf);
+                #endif
+                break;
+            }
         }
     }
 }

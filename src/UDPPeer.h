@@ -11,7 +11,15 @@ public:
 
     ~UDPPeer();
 
-    void Update();
+    void Update(); //will call sendMCL and recv
+
+    void sendString(char* string, size_t len);
+
+    void receiveData();
+
+    
+
+    
 
 
 private:
@@ -71,8 +79,8 @@ private:
         float targetY;
     };
 
-    void sendData();
-    void receiveData();
+    void sendGeneric(void* structToSend, size_t structSize);
+    void sendMCLData();
     void shutDown();
 };
 

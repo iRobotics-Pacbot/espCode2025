@@ -7,6 +7,8 @@
 #include "TOF.h"
 
 
+void testUDP(UDPPeer* udp);
+
 //class task instantiations 
 UDPPeer *myPeer;
 TOF *tof;
@@ -57,6 +59,7 @@ void setup() {
   Wire.begin();
   Wire.setClock(100000);
 
+
   //Safestruct instantiation 
   SafeStruct<OdoPose> odoStruct;
   SafeStruct<TOF_t> tofStruct;
@@ -66,16 +69,40 @@ void setup() {
 
   //task class instantiation
   myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
-  tof = new TOF(tofStruct);
-  odo = new Odo(odoStruct);
+  // tof = new TOF(tofStruct);
+  // odo = new Odo(odoStruct);
 
   
-  xTaskCreate(updTask, "UDP Task", 2048, (void*)myPeer, 1, NULL);
-  xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
-  xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
+  // xTaskCreate(updTask, "UDP Task", 2048, (void*)myPeer, 1, NULL);
+  // xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
+  // xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
+  testUDP(myPeer);
 
 }
 void loop() {;}
 
 
 
+
+
+
+
+//TEST FUNCTIONS
+void testUDP(UDPPeer* udp) {
+  size_t strSize = 26; //keep this under 64
+  char data[strSize] = "abcdefghijklmnopqrstuvwxyz"; 
+
+  size_t ct = 0;
+  while (1) {
+    udp->sendString(data, strSize);
+    udp->receiveData();
+    delay(1000);
+    ct++;
+
+    char end = data[strSize-1];
+    for (uint8_t i = strSize; i > 0; i--) {
+      data[i] = data[i-1];
+    }
+    data[0] = end;
+  }
+}

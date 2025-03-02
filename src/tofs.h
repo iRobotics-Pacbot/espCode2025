@@ -5,7 +5,7 @@
 class tofs{
     private:
         uint16_t tofDistance[NUM_TOFS];
-        VL53L4CX sensors[NUM_TOFS];
+        
 
     public:
         tofs();
@@ -13,4 +13,5 @@ class tofs{
         void tofBeginReadings();
         void tofUpdateReadings();
         double tofGet(int which);
+        VL53L4CX sensors[NUM_TOFS] = {{&Wire, 12}};
 };

@@ -1,11 +1,20 @@
 #include "tofs.h"
-
+#include "Wire.h"
 tofs::tofs(){
-    sensors[0] = {&Wire, 16}; //, {&Wire, 15}, {&Wire, 14}, {&Wire, 13}};
+     //, {&Wire, 15}, {&Wire, 14}, {&Wire, 13}};
 }
 
 void tofs::tofInit() {
-    Serial.printf("tof init\n");
+    // Serial.printf("tof init\n");
+    // auto& tof = sensors[0];
+
+    // tof.begin();
+    // tof.VL53L4CX_Off();
+    // tof.setXShutPin(12);
+    // tof.InitSensor(0x12);
+    // tof.VL53L4CX_ClearInterruptAndStartMeasurement();
+
+    // Serial.println("READY -----------");
     for (int i = 0; i < NUM_TOFS; i++) {
         auto& tof = sensors[i];
         int status = tof.begin();
@@ -15,50 +24,53 @@ void tofs::tofInit() {
                 delay(1000);
             }
         }
-        status = tof.InitSensor(0x12 + 2 * i);
-        if (status != 0) {
-            while (true) {
-                Serial.printf("tof %d: init sensor: %d\n", i, status);
-                delay(1000);
-            }
-        }
-        if (status != 0) {
-            while (true) {
-                Serial.printf("tof %d: timing budget: %d\n", i, status);
-            }
-        }
-        status = tof.VL53L4CX_StartMeasurement();
-        if (status != 0) {
-            while (true) {
-                Serial.printf("tof %d: start: %d\n", i, status);
-                delay(1000);
-            }
-        }
+        delay(1000);
+        tof.VL53L4CX_Off(); // from STM example
+        delay(1000);
+        status = tof.InitSensor(0x12);
+        // if (status != 0) {
+        //     while (true) {
+        //         Serial.printf("tof %d: init sensor: %d\n", i, status);
+        //         delay(1000);
+        //     }
+        // }
+        // if (status != 0) {
+        //     while (true) {
+        //         Serial.printf("tof %d: timing budget: %d\n", i, status);
+        //     }
+        // }
+        // status = tof.VL53L4CX_StartMeasurement();
+        // if (status != 0) {
+        //     while (true) {
+        //         Serial.printf("tof %d: start: %d\n", i, status);
+        //         delay(1000);
+        //     }
+        // }
         status = tof.VL53L4CX_ClearInterruptAndStartMeasurement();
-        if (status != 0) {
-            while (true) {
-                Serial.printf("tof %d: clear: %d\n", i, status);
-                delay(1000);
-            }
-        }
+        // if (status != 0) {
+        //     while (true) {
+        //         Serial.printf("tof %d: clear: %d\n", i, status);
+        //         delay(1000);
+        //     }
+        // }
 
         // the number of microseconds that the sensor will take for each measurement
         status = tof.VL53L4CX_SetMeasurementTimingBudgetMicroSeconds(8000);
-        if(status != 0){
-            while (true){
-                Serial.printf("tof %d: budget: %d\n", i, status);
-                delay(1000);
-            }
-        }
+        // if(status != 0){
+        //     while (true){
+        //         Serial.printf("tof %d: budget: %d\n", i, status);
+        //         delay(1000);
+        //     }
+        // }
         
         // the maximum distance that the sensor can read, not sure what units
         status = tof.VL53L4CX_SetTuningParameter(VL53L4CX_TUNINGPARM_RESET_MERGE_THRESHOLD, 1000);
-        if(status != 0){
-            while (true){
-                Serial.printf("tof %d: merge thresh: %d\n", i, status);
-                delay(1000);
-            }
-        }
+        // if(status != 0){
+        //     while (true){
+        //         Serial.printf("tof %d: merge thresh: %d\n", i, status);
+        //         delay(1000);
+        //     }
+        // }
         
     }
 }

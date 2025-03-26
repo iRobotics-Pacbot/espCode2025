@@ -1,85 +1,57 @@
-// ***NOT USING THIS ANYMORE, USING ARDUINO ENCODER LIBRARY INSTEAD***
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+#include "driver/pcnt.h"
 
-/*
-class Encoder{
+// Define the GPIO pins for the quadrature encoder
+#define PCNT_H_LIM_VAL      INT16_MAX
+#define PCNT_L_LIM_VAL      INT16_MIN
 
-private:
-    double last_update_time;
-    double pll_kp;
-    double pll_ki;
-    double last_measurement;
-    double pll_pos;
-    double pll_vel;
-    double pll_acc;
+// Define the GPIO pins for the quadrature encoder
+#define ROTARY_ENCODER_A_GPIO 34
+#define ROTARY_ENCODER_B_GPIO 36
 
+// Define the PCNT unit and channel
+#define PCNT_UNIT_NUM        PCNT_UNIT_0
+#define PCNT_CHANNEL_NUM     PCNT_CHANNEL_0
 
+void app_main(void)
+{
+    // Configuration for PCNT unit
+    pcnt_config_t pcnt_config = {
+        .pulse_gpio_num = ROTARY_ENCODER_A_GPIO,   // GPIO for A channel
+        .ctrl_gpio_num = ROTARY_ENCODER_B_GPIO,    // GPIO for B channel
+        .lctrl_mode = PCNT_MODE_KEEP,              // Rising A on HIGH B = CW step
+        .hctrl_mode = PCNT_MODE_REVERSE,           // Rising A on LOW B = CCW step
+        .pos_mode = PCNT_COUNT_INC,                // Count on rising edge of A
+        .neg_mode = PCNT_COUNT_DIS,                // Discard falling edge of A
+        .counter_h_lim = PCNT_H_LIM_VAL,
+        .counter_l_lim = PCNT_L_LIM_VAL,
+        .unit = PCNT_UNIT_NUM,
+        .channel = PCNT_CHANNEL_NUM,
+    };
 
-public:
-    Encoder(){
+    // Initialize PCNT unit
+    pcnt_unit_config(&pcnt_config);
 
+    // Enable filter to reduce noise
+    pcnt_set_filter_value(PCNT_UNIT_NUM, 250);
+    pcnt_filter_enable(PCNT_UNIT_NUM);
+
+    // Clear and resume counter
+    pcnt_counter_pause(PCNT_UNIT_NUM);
+    pcnt_counter_clear(PCNT_UNIT_NUM);
+    pcnt_counter_resume(PCNT_UNIT_NUM);
+
+    int16_t count;
+    while (1) {
+        // Read the current count
+        pcnt_get_counter_value(PCNT_UNIT_NUM, &count);
+        ESP_LOGI("encoder", "Count: %d", count);
+        
+        printf("Count: %d", count); //I added this
+
+        // Delay and yield
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
-
-
-    //Below setter functions to use with PLL
-
-    void set_last_update_time(double time){
-        this->last_update_time = time;
-    }
-
-    void set_pll_kp(double pll_kp){
-        this->pll_kp = pll_kp;
-    }
-
-    void set_pll_ki(double pll_ki){
-        this->pll_ki = pll_ki;
-    }
-
-    void set_last_measurement(double last_measurement){
-        this->last_measurement = last_measurement;
-    }
-
-    void set_pll_pos(double pll_pos){
-        this->pll_pos = pll_pos;
-    }
-
-    void set_pll_vel(double pll_vel){
-        this->pll_vel = pll_vel;
-    }
-
-    void set_pll_acc(double pll_acc){
-        this->pll_acc = pll_acc;
-    }
-
-
-    //Below getter functions to use with PLL
-    double get_kp(){
-        return pll_kp;
-    }
-
-    double get_ki(){
-        return pll_ki;
-    }
-
-    double get_vel(){
-        return pll_vel;
-    }
-
-    double get_pos(){
-        return pll_pos;
-    }
-
-
-    //Increment methods for pos and vel
-    void increment_pos(double increment){
-        pll_pos = pll_pos + increment;
-    }
-
-
-    void increment_vel(double increment){
-        pll_vel = pll_vel + increment;
-    }
-
-    
-};
-
-*/;
+}

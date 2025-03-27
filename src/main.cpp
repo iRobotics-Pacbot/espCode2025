@@ -77,8 +77,8 @@ void setup() {
   // xTaskCreate(updTask, "UDP Task", 2048, (void*)myPeer, 1, NULL);
   // xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
   // xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
-  testEncoder(); //Added this for testing
-  //testUDP(myPeer);
+  //testEncoder(); //Added this for testing
+  testUDP(myPeer);
 
 
 }

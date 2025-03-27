@@ -1,16 +1,22 @@
 import socket
 import struct
 import time
+import filter
+import numpy as np
 
+
+TOF_COUNT = 6
 class UDPPeer:
-
-    def __init__(self):
-        self.TOF_COUNT = 6
+    def __init__(self, filterInstance, project_sensors):
         self.MDNS = 'uiucpacbot.local'
         self.MY_IP = "192.168.0.101"
         self.UDP_PORT = 8089
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind((self.MY_IP, self.UDP_PORT))
+        self.myFilter = filterInstance
+
+        self.lastMCLCall = time.perf_counter()
+        self.project_sensors_func = project_sensors
 
 
 
@@ -20,7 +26,29 @@ class UDPPeer:
         packType, data = self._recvGeneric()
         if (packType == ord('a')):
             print("recvd data for mcl")
-            #update the values fed into MCL
+            distances = data[:TOF_COUNT]
+            stds = data[TOF_COUNT:2 * TOF_COUNT]
+            x, y, vx, vy, stdvx, stdvy, heading = data[2 * TOF_COUNT:]
+            self.myFilter.predict(time.perf_counter())
+            self.lastMCLCall = time.perf_counter()
+
+            odometry = np.array([x, y, vx, vy])  # Fixed np.concatenate issue
+            odometry_sigma = np.array([stdvx, stdvy, stdvx, stdvy])  # Matching shape
+
+            noised_odometry = np.random.normal(odometry, odometry_sigma)
+            measurement_sigma = np.array(stds)
+            noised_measurements = np.random.normal(distances, measurement_sigma)
+
+            self.myFilter.update(noised_measurements, measurement_sigma, noised_odometry, odometry_sigma, heading, self.project_sensors_func)
+
+            self.myFilter.resample()
+            state = self.myFilter.get_state_estimate()
+
+            MCLOut = state[0], state[1], state[2], state[3], x, y
+            self.sendMCLDout(MCLOut)
+
+
+
         elif (packType == ord('b')):
             print(f"chars recvd:{data.decode()}")
         else :
@@ -33,6 +61,8 @@ class UDPPeer:
     #Each type of data send has its own function to call
     #-----------------------------------------------------------------
     def sendMCLDout(self, MCLOut):
+        packed_data = struct.pack('<6f', *MCLOut)
+        self._sendGeneric(packed_data)
         pass
 
     def sendPath(self, path):
@@ -79,24 +109,35 @@ class UDPPeer:
 
 
 
-strings = [
-    "poopoo",
-    "deadbeef",
-    "bro",
-    "onetwothreefourfivesizseveneightnine",
-    "Python Networking",
-    "String Packing Test"
-]
+
+
+
+
+
+
+
+
+
+
+
+# strings = [
+#     "poopoo",
+#     "deadbeef",
+#     "bro",
+#     "onetwothreefourfivesizseveneightnine",
+#     "Python Networking",
+#     "String Packing Test"
+# ]
     
 
 
 
 
-if __name__ == "__main__":
-    peer = UDPPeer()
-    i = 0
-    while (True):
-        peer.processDin()
-        peer.sendString(strings[i])
-        i = (i + 1)%len(strings)
-        time.sleep(1)
+# if __name__ == "__main__":
+#     peer = UDPPeer()
+#     i = 0
+#     while (True):
+#         peer.processDin()
+#         peer.sendString(strings[i])
+#         i = (i + 1)%len(strings)
+#         time.sleep(1)

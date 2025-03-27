@@ -50,6 +50,7 @@ private:
         float vy;
         float stdvx;
         float stdvy;
+        float heading;
 
         void set(float dist[TOF_COUNT], float std[TOF_COUNT], float x, float y, float vx, float vy, float stdvx, float stdvy) {
             for (uint8_t i =0; i < TOF_COUNT; i++) {

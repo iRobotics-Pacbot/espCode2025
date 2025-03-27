@@ -5,6 +5,7 @@
 #include "Wire.h"
 #include "Odo.h"
 #include "TOF.h"
+#include "Encoder_test.h"
 
 
 void testUDP(UDPPeer* udp);
@@ -76,7 +77,9 @@ void setup() {
   // xTaskCreate(updTask, "UDP Task", 2048, (void*)myPeer, 1, NULL);
   // xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
   // xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
-  testUDP(myPeer);
+  testEncoder(); //Added this for testing
+  //testUDP(myPeer);
+
 
 }
 void loop() {;}

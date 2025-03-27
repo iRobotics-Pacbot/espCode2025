@@ -1,21 +1,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_log.h"
-#include "driver/pcnt.h"
+#include "Encoder_test.h"
 
-// Define the GPIO pins for the quadrature encoder
-#define PCNT_H_LIM_VAL      INT16_MAX
-#define PCNT_L_LIM_VAL      INT16_MIN
-
-// Define the GPIO pins for the quadrature encoder
-#define ROTARY_ENCODER_A_GPIO 34
-#define ROTARY_ENCODER_B_GPIO 36
-
-// Define the PCNT unit and channel
-#define PCNT_UNIT_NUM        PCNT_UNIT_0
-#define PCNT_CHANNEL_NUM     PCNT_CHANNEL_0
-
-void app_main(void)
+void testEncoder(void)
 {
     // Configuration for PCNT unit
     pcnt_config_t pcnt_config = {
@@ -49,7 +36,7 @@ void app_main(void)
         pcnt_get_counter_value(PCNT_UNIT_NUM, &count);
         ESP_LOGI("encoder", "Count: %d", count);
         
-        printf("Count: %d", count); //I added this
+        //printf("Count: %d", count); 
 
         // Delay and yield
         vTaskDelay(200 / portTICK_PERIOD_MS);

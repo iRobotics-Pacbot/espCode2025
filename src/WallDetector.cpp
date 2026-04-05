@@ -1,4 +1,5 @@
 #include "WallDetector.h"
+#include <Arduino.h>
 #include <cmath>
 
 WallDetector::WallDetector(const std::vector<std::vector<double> >& sensorPoses) {
@@ -47,6 +48,7 @@ void WallDetector::newCalc(
     double threshold2 = 10.0;
 
     for (int i = 0; i < 6; i++) {
+        Serial.println("inside top calc loop");
         if (isPointWithinRange(points[i], fieldRelXMin, fieldRelXMax,
                                fieldRelYMin, fieldRelYMax)) {
 
@@ -54,6 +56,7 @@ void WallDetector::newCalc(
                 bool hasChanged = false;
 
                 for (int j = 0; j < (int)vertLines.size(); j++) {
+                    Serial.println("updating vert line");
                     Line newLine;
                     bool changed = updateLine(j, i, points, 1,
                                               vertLines,
@@ -80,6 +83,7 @@ void WallDetector::newCalc(
                 bool hasChanged = false;
 
                 for (int j = 0; j < (int)horizLines.size(); j++) {
+                    Serial.println("updating horiz line");
                     Line newLine;
                     bool changed = updateLine(j, i, points, 0,
                                               horizLines,

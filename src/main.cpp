@@ -225,29 +225,30 @@ void setup() {
 
 void loop() {
   sensor_measurements.clear();
-  while(sensor_measurements.size() < 6) {
-    for (int i = 0; i < 6; i++) {
-      VL53L4CX_MultiRangingData_t MultiRangingData;
-      uint8_t NewDataReady = 0;
 
-      // Check if the sensor has a new reading
-      sensors[i].VL53L4CX_GetMeasurementDataReady(&NewDataReady);
+  int i = 0;
+  while(i < 6) {
+    VL53L4CX_MultiRangingData_t MultiRangingData;
+    uint8_t NewDataReady = 0;
 
-      if (NewDataReady) {
-        sensors[i].VL53L4CX_GetMultiRangingData(&MultiRangingData);
-        
-        // If at least one object is found
-        if (MultiRangingData.NumberOfObjectsFound > 0) {
-          // RangeData[0] is typically the closest target
-          sensor_measurements.push_back(MultiRangingData.RangeData[0].RangeMilliMeter);
-          Serial.println(MultiRangingData.RangeData[0].RangeMilliMeter);
-        } else {
-          Serial.print("No target\t");
-        }
-        
-        // Clear interrupt to prepare for next measurement
-        sensors[i].VL53L4CX_ClearInterruptAndStartMeasurement();
+    // Check if the sensor has a new reading
+    sensors[i].VL53L4CX_GetMeasurementDataReady(&NewDataReady);
+
+    if (NewDataReady) { 
+      sensors[i].VL53L4CX_GetMultiRangingData(&MultiRangingData);
+      
+      // If at least one object is found
+      if (MultiRangingData.NumberOfObjectsFound > 0) {
+        // RangeData[0] is typically the closest target
+        sensor_measurements.push_back(MultiRangingData.RangeData[0].RangeMilliMeter);
+        Serial.println(MultiRangingData.RangeData[0].RangeMilliMeter);
+      } else {
+        Serial.print("No target\t");
       }
+      
+      // Clear interrupt to prepare for next measurement
+      sensors[i].VL53L4CX_ClearInterruptAndStartMeasurement();
+      i++;
     }
   }
   Serial.println(); 

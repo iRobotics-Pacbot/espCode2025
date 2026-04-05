@@ -6,6 +6,7 @@ using namespace std;
 #define DEBUG
 
 UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose, SafeStruct<Path>& path) : odomRef(odom), tofRef(tof), mclposeRef(mclpose), pathRef(path){
+    Serial.println("entered UDP constructor");
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     WiFi.begin(ssid, password);

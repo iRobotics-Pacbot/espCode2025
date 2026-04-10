@@ -25,7 +25,7 @@ VL53L4CX sensors[6] = {
 };
 
 uint8_t sensorAddresses[6] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35};
-std::vector<double> sensor_measurements;
+double sensor_measurements[6] = {0, 0, 0, 0, 0, 0};
 
 double tree_width = 500;
 double tree_height = 500;
@@ -50,24 +50,24 @@ void plannerStep() {
     int path_search_radius = 50;
 
     while (i < 100) {
-        Point point = createRandomPoint(tree_width, tree_height);
-        std::vector<Point> closestPoints = findClosestPoints(tree, point, 50);
-        std::vector<Line> newLines;
+      Point point = createRandomPoint(tree_width, tree_height);
+      std::vector<Point> closestPoints = findClosestPoints(tree, point, 50); 
+      std::vector<Line> newLines;
 
-        for (const Point& cp : closestPoints) {
-            newLines.push_back(pathBetweenPoints(point, cp));
-        }
+      for (const Point& cp : closestPoints) {
+          newLines.push_back(pathBetweenPoints(point, cp));
+      }
 
-        for (const Line& line : newLines) {
-            if (!pointIsBehindWall(line, point, vert, horiz)) {
-                tree.push_back(line);
-            }
-        }
+      for (const Line& line : newLines) {
+          if (!pointIsBehindWall(line, point, vert, horiz)) {
+              tree.push_back(line);
+          }
+      }
 
-        if (tree.size() > last_tree_len) {
-            i++;
-            last_tree_len = tree.size();
-        }
+      if (tree.size() > last_tree_len) {
+          i++;
+          last_tree_len = tree.size();
+      }
     }
     Serial.println("created tree");
 
@@ -165,7 +165,9 @@ void setup() {
 
   // Setup Wire
   Wire.begin();
-  Wire.setClock(100000);
+  
+  pinMode(LDO2_ENABLE_PIN, OUTPUT);
+  digitalWrite(LDO2_ENABLE_PIN, HIGH);
 
   Serial.println("Starting 6-sensor initialization...");
 
@@ -214,8 +216,6 @@ void setup() {
   // xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
   // xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
   //testEncoder(); //Added this for testing
-  pinMode(LDO2_ENABLE_PIN, OUTPUT);
-  digitalWrite(LDO2_ENABLE_PIN, HIGH);
   //testUDP(myPeer);
   //delay(1000);
   randomSeed(analogRead(0));  // randomness for rrt
@@ -224,10 +224,9 @@ void setup() {
 }
 
 void loop() {
-  sensor_measurements.clear();
 
   int i = 0;
-  while(i < 6) {
+  for(int i = 0;i < 6; i++) {
     VL53L4CX_MultiRangingData_t MultiRangingData;
     uint8_t NewDataReady = 0;
 
@@ -240,20 +239,32 @@ void loop() {
       // If at least one object is found
       if (MultiRangingData.NumberOfObjectsFound > 0) {
         // RangeData[0] is typically the closest target
-        sensor_measurements.push_back(MultiRangingData.RangeData[0].RangeMilliMeter);
-        Serial.println(MultiRangingData.RangeData[0].RangeMilliMeter);
+        sensor_measurements[i] = (double) MultiRangingData.RangeData[0].RangeMilliMeter;
       } else {
         Serial.print("No target\t");
       }
       
       // Clear interrupt to prepare for next measurement
       sensors[i].VL53L4CX_ClearInterruptAndStartMeasurement();
-      i++;
     }
-  }
-  Serial.println(); 
-  delay(50); 
+  }  
   detector.newCalc(sensor_measurements, tree_width, tree_height, vert, horiz);
+  Serial.println("horiz");
+  for(Line line: horiz) {
+    Serial.print("[");
+    Serial.print("[ ");
+    Serial.print(line.start.x);
+    Serial.print(", ");
+    Serial.print(line.start.y);
+    Serial.print(" ]");
+    Serial.print("[ ");
+    Serial.print(line.end.x);
+    Serial.print(", ");
+    Serial.print(line.end.y);
+    Serial.print(" ]");
+    Serial.println("]");
+  }
+  Serial.println("vert");
   for(Line line: vert) {
     Serial.print("[");
     Serial.print("[ ");
@@ -262,15 +273,15 @@ void loop() {
     Serial.print(line.start.y);
     Serial.print(" ]");
     Serial.print("[ ");
-    Serial.print(line.start.x);
+    Serial.print(line.end.x);
     Serial.print(", ");
-    Serial.print(line.start.y);
+    Serial.print(line.end.y);
     Serial.print(" ]");
     Serial.println("]");
   }
-  plannerStep();
+  //plannerStep();
 
-  delay(200);  // prevent flooding + give time slice 
+  delay(1000);
 }
 
 //TEST FUNCTIONS

@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <limits>
+#include <Arduino.h>
 
 Point createRandomPoint(double width_range, double height_range) {
     return {
@@ -79,6 +80,7 @@ bool pointIsBehindWall(const Line& newLine, const Point& point, const std::vecto
     if (vert.empty() && horiz.empty()) return false;
 
     for (const Line& line : vert) {
+        if((line.start.x == 0 && line.start.y == 0) || (line.end.x == 0 && line.end.y == 0)) return false;
         double ux, uy, a2, b2;
         findParamCoeffs(line, &ux, &uy, &a2, &b2);
 
@@ -110,6 +112,7 @@ bool pointIsBehindWall(const Line& newLine, const Point& point, const std::vecto
     }
 
     for (const Line& line : horiz) {
+        if((line.start.x == 0 && line.start.y == 0) || (line.end.x == 0 && line.end.y == 0)) return false;
         double ux, uy, a2, b2;
         findParamCoeffs(line, &ux, &uy, &a2, &b2);
 

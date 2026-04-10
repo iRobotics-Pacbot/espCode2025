@@ -2,13 +2,13 @@
 #include <Arduino.h>
 #include <cmath>
 
-WallDetector::WallDetector(const std::vector<std::vector<double> >& sensorPoses) {
+WallDetector::WallDetector(std::vector<std::vector<double>>& sensorPoses) {
     sensor_poses = sensorPoses;
     prev_readings.resize(6);
 }
 
 std::vector<Point> WallDetector::computePoints(
-    const std::vector<double>& sensor_measurements) {
+    const double sensor_measurements[6]) {
 
     std::vector<Point> points(6);
 
@@ -32,12 +32,18 @@ std::vector<Point> WallDetector::computePoints(
 
 
 void WallDetector::newCalc(
-    const std::vector<double>& sensor_measurements,
+    const double sensor_measurements[6],
     double width, double height,
     std::vector<Line>& out_vert,
     std::vector<Line>& out_horiz) {
 
     std::vector<Point> points = computePoints(sensor_measurements);
+    Serial.println("points");
+    for(Point point: points) {
+        Serial.print(point.x);
+        Serial.print(" ");
+        Serial.println(point.y);
+    }
 
     double fieldRelXMax = width / 2.0;
     double fieldRelXMin = width / 2.0;
@@ -48,7 +54,6 @@ void WallDetector::newCalc(
     double threshold2 = 10.0;
 
     for (int i = 0; i < 6; i++) {
-        Serial.println("inside top calc loop");
         if (isPointWithinRange(points[i], fieldRelXMin, fieldRelXMax,
                                fieldRelYMin, fieldRelYMax)) {
 
@@ -56,7 +61,6 @@ void WallDetector::newCalc(
                 bool hasChanged = false;
 
                 for (int j = 0; j < (int)vertLines.size(); j++) {
-                    Serial.println("updating vert line");
                     Line newLine;
                     bool changed = updateLine(j, i, points, 1,
                                               vertLines,
@@ -83,7 +87,6 @@ void WallDetector::newCalc(
                 bool hasChanged = false;
 
                 for (int j = 0; j < (int)horizLines.size(); j++) {
-                    Serial.println("updating horiz line");
                     Line newLine;
                     bool changed = updateLine(j, i, points, 0,
                                               horizLines,
@@ -108,19 +111,24 @@ void WallDetector::newCalc(
             }
         }
     }
-    // for(int i = 0; i < (int)vertLines.size(); i++) {
-    //     if(!isPointWithinRange(vertLines[i].start, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)
-    //      || !isPointWithinRange(vertLines[i].end, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)) {
-    //         vertlines.erase(2);
-    //      }
-    // }
+    
+    for(std::vector<Line>::iterator it = vertLines.begin(); it != vertLines.end();) {
+        if(!isPointWithinRange(it->start, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)
+         || !isPointWithinRange(it->end, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)) {
+            it = vertLines.erase(it);
+         } else {
+            ++it;
+         }
+    }
 
-    // for(int i = 0; i < (int)horizLines.size(); i++) {
-    //     if(!isPointWithinRange(horizLines[i].start, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)
-    //      || !isPointWithinRange(horizLines[i].end, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)) {
-    //         horizLines.erase(i);
-    //      }
-    // }
+    for(std::vector<Line>::iterator it = horizLines.begin(); it != horizLines.end();) {
+        if(!isPointWithinRange(it->start, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)
+         || !isPointWithinRange(it->end, fieldRelXMin, fieldRelXMax, fieldRelYMin, fieldRelYMax)) {
+            it = horizLines.erase(it);
+        } else {
+            ++it;
+        }
+    }
     prev_readings = points;
     out_vert = vertLines;
     out_horiz = horizLines;

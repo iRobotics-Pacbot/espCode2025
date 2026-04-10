@@ -6,20 +6,20 @@
 
 class WallDetector {
 public:
-    WallDetector(const std::vector<std::vector<double> >& sensorPoses);
+    WallDetector(std::vector<std::vector<double>>& sensorPoses);
 
-    void newCalc(const std::vector<double>& sensor_measurements,
+    void newCalc(const double sensor_measurements[6],
                  double width, double height,
                  std::vector<Line>& out_vert,
                  std::vector<Line>& out_horiz);
 
 private:
-    std::vector<std::vector<double> > sensor_poses;
+    std::vector<std::vector<double>> sensor_poses;
     std::vector<Point> prev_readings;
     std::vector<Line> horizLines;
     std::vector<Line> vertLines;
 
-    std::vector<Point> computePoints(const std::vector<double>& sensor_measurements);
+    std::vector<Point> computePoints(const double sensor_measurements[6]);
 
     bool updateLine(int i, int point_idx,
                     const std::vector<Point>& points,

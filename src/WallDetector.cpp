@@ -50,8 +50,8 @@ void WallDetector::newCalc(
     double fieldRelYMax = height / 2.0;
     double fieldRelYMin = height / 2.0;
 
-    double threshold = 8.5;
-    double threshold2 = 10.0;
+    double threshold = 5.0;
+    double threshold2 = 15.0;
 
     for (int i = 0; i < 6; i++) {
         if (isPointWithinRange(points[i], fieldRelXMin, fieldRelXMax,
@@ -209,14 +209,14 @@ Point WallDetector::pointWithinRange(Point p,
                                      double xmin, double xmax,
                                      double ymin, double ymax) {
     if (p.x > xmax) p.x = xmax;
-    if (p.x < xmin) p.x = xmin;
+    if (p.x < xmin) p.x = -xmin;
     if (p.y > ymax) p.y = ymax;
-    if (p.y < ymin) p.y = ymin;
+    if (p.y < ymin) p.y = -ymin;
     return p;
 }
 
 bool WallDetector::isPointWithinRange(const Point& p,
                                       double xmin, double xmax,
                                       double ymin, double ymax) {
-    return (p.x > xmax || p.x < xmin || p.y > ymax || p.y < ymin);
+    return (p.x > xmax || p.x < -xmin || p.y > ymax || p.y < -ymin);
 }

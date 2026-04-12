@@ -12,17 +12,14 @@ struct TOF_t {
 
 
 template <typename T> class SafeStruct {
-    private:
-        xSemaphoreHandle lock;
-        T data;
-        // #ifdef DEBUG
-        // size_t ct; 
-        // #endif
-
-    public:
-        SafeStruct() {lock = xSemaphoreCreateMutex();}
-        T get() {xSemaphoreTake(lock, portMAX_DELAY); T out = data; xSemaphoreGive(lock); return out;}
-        void set(T data) {xSemaphoreTake(lock, portMAX_DELAY); this->data = data; xSemaphoreGive(lock);}
+private:
+    SemaphoreHandle_t lock = nullptr;
+    T data;
+public:
+    SafeStruct() {}
+    void init() { lock = xSemaphoreCreateMutex(); } // call this from setup()
+    T get() { xSemaphoreTake(lock, portMAX_DELAY); T out = data; xSemaphoreGive(lock); return out; }
+    void set(T d) { xSemaphoreTake(lock, portMAX_DELAY); data = d; xSemaphoreGive(lock); }
 };
 
 struct MclPose {
@@ -32,6 +29,11 @@ struct MclPose {
     float vy;
     float oldX;
     float oldY;
+};
+
+struct EncoderData {
+    float leftEncoderX;
+    float rightEncoderX;
 };
 
 struct Path {

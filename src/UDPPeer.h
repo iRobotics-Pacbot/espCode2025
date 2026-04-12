@@ -11,16 +11,13 @@ public:
 
     ~UDPPeer();
 
-    void Update(); //will call sendMCL and recv
+    char Update(); //will call sendMCL and recv
 
     void sendString(char* string, size_t len);
 
-    void receiveData();
+    char receiveData();
 
-    
-
-    
-
+    void sendGeneric(void* structToSend, size_t structSize);
 
 private:
     WiFiUDP udp;
@@ -78,8 +75,6 @@ private:
         float targetX;
         float targetY;
     };
-
-    void sendGeneric(void* structToSend, size_t structSize);
     void sendMCLData();
     void shutDown();
 };

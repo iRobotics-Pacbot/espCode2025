@@ -6,11 +6,43 @@ using namespace std;
 #define DEBUG
 
 UDPPeer::UDPPeer(SafeStruct<OdoPose>& odom, SafeStruct<TOF_t>& tof, SafeStruct<MclPose>& mclpose, SafeStruct<Path>& path) : odomRef(odom), tofRef(tof), mclposeRef(mclpose), pathRef(path){
+    // WiFi.mode(WIFI_STA);
+    // WiFi.disconnect();
+    // WiFi.begin(ssid, password);
+    // delay(10000);
+
+    int n = WiFi.scanNetworks();
+    for (int i = 0; i < n; i++) {
+        Serial.printf("SSID: %s  BSSID: %s  Channel: %d  RSSI: %d\n",
+            WiFi.SSID(i).c_str(),
+            WiFi.BSSIDstr(i).c_str(),
+            WiFi.channel(i),
+            WiFi.RSSI(i));
+    }
+
+    // WiFi.mode(WIFI_STA);
+    // WiFi.disconnect(true);  // true = also erase stored credentials
+    // delay(1000);            // give it a moment to fully reset
+    // WiFi.begin(ssid, password);
+
+    WiFi.mode(WIFI_OFF);        // fully power down radio
+    delay(1000);
     WiFi.mode(WIFI_STA);
-    WiFi.disconnect();
+    WiFi.setSleep(false);       // disable power save
+    WiFi.setTxPower(WIFI_POWER_19_5dBm);  // max TX power
+    WiFi.disconnect(true, true); // erase credentials too (second true = erase NVS)
+    delay(1000);
     WiFi.begin(ssid, password);
+    // WiFi.begin(ssid, password, 9, bssid, true);
+
+    WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+        if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+            Serial.printf("Disconnect reason: %d\n", info.wifi_sta_disconnected.reason);
+        }
+    });
     
     while (WiFi.status() != WL_CONNECTED) {
+        Serial.printf("\nFailed! Status code: %d\n", WiFi.status());
         #ifdef DEBUG
             Serial.print(".");
         #endif
@@ -40,9 +72,9 @@ UDPPeer::~UDPPeer() {
     shutDown();
 }
 
-void UDPPeer::Update() {
+char UDPPeer::Update() {
     sendMCLData();
-    receiveData();
+    return receiveData();
 }
 
 void UDPPeer::sendMCLData() {
@@ -50,6 +82,9 @@ void UDPPeer::sendMCLData() {
     TOF_t tof;
     odom = odomRef.get();
     tof = tofRef.get();
+    // for (int i = 0; i < TOF_COUNT; i++) {
+    //     Serial.printf("Distance %d: %f mm\n", i, tof.distances[i]);
+    // }
     struct {
         char packetID;
         OdoPose odom;
@@ -83,11 +118,11 @@ void UDPPeer::sendGeneric(void* structToSend, size_t structSize) {
     udp.write((uint8_t*)structToSend, structSize);
     udp.endPacket();
     #ifdef DEBUG
-        Serial.println("sent packet");
+        // Serial.println("sent packet");
     #endif
 }
 
-void UDPPeer::receiveData() {
+char UDPPeer::receiveData() {
     Packet packet;
     int packetSize = udp.parsePacket();
     if (packetSize && packetSize <= sizeof(Packet)) {
@@ -96,7 +131,7 @@ void UDPPeer::receiveData() {
         switch(packet.type) {
             case 'a': {
                 #ifdef DEBUG
-                    Serial.println("recv mcl data");
+                    // Serial.print("recv mcl data");
                 #endif
                 DataFromMCL* din = reinterpret_cast<DataFromMCL*>(&packet.buf);
                 MclPose mclPose;
@@ -107,6 +142,10 @@ void UDPPeer::receiveData() {
                 mclPose.oldX = din->oldX;
                 mclPose.oldY = din->oldY;
                 mclposeRef.set(mclPose);
+                // Serial.print(din->x);
+                // Serial.print(" | ");
+                // Serial.print(din->y);
+                // Serial.println("");
                 break;
             }
             case 'b': {
@@ -128,6 +167,8 @@ void UDPPeer::receiveData() {
             }
         }
     }
+
+    return 'F';
 }
 
 void UDPPeer::shutDown() {

@@ -28,7 +28,7 @@ VL53L4CX sensors[6] = {
   VL53L4CX(&Wire, xshutPins[5])
 };
 
-uint8_t sensorAddresses[6] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35};
+uint8_t sensorAddresses[6] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x36};
 
 //Safestruct instantiation 
 SafeStruct<OdoPose> odoStruct;
@@ -112,17 +112,21 @@ void sensorTask(void *pvParameters) {
         } else {
           Serial.print("No target\t");
         }
-        sensors[i].VL53L4CX_ClearInterruptAndStartMeasurement();
       }
+      sensors[i].VL53L4CX_ClearInterruptAndStartMeasurement();
     }
 
+    // vTaskDelay(pdMS_TO_TICKS(25));
+
+    drive->readSensors();
+
     tofStruct.set(data); // single atomic write after all sensors are polled
-    // Serial.println();
+    Serial.println("Read");
     // Serial.print("data test: ");
     // Serial.println(tofStruct.get().distances[0]);
     // Serial.println(tofStruct.get().stds[0]);
 
-    xSemaphoreGive(sensorDoneSem);
+    // xSemaphoreGive(sensorDoneSem);
 
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -179,8 +183,6 @@ void odometryTask(void* param)
   //           drive->otosVelocityMeasurement.x,  drive->otosVelocityMeasurement.y,  drive->otosVelocityMeasurement.h,
   //           drive->encoderMeasurements.leftEncoderX, drive->encoderMeasurements.rightEncoderX,
   while(true) {
-    drive->readSensors();
-
     auto data = odoStruct.get();
     data.pos.x = drive->otosPoseMeasurement.x;
     data.pos.y = drive->otosPoseMeasurement.y;
@@ -203,7 +205,7 @@ void setup() {
 
   // Setup Wire
   Wire.begin(8, 9);
-  Wire.setClock(400000);
+  Wire.setClock(100000);
 
   //task class instantiation
   pinMode(17, OUTPUT);
@@ -223,17 +225,15 @@ void setup() {
     
   // analogWriteFrequency(100000);
   // analogWriteResolution(15);
-  myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
+// myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
 
   // In setup():
   sendQueue = xQueueCreate(10, 64); // 10 messages, 128 bytes each
 
   sensorDoneSem = xSemaphoreCreateBinary();
 
-  drive = new Drivetrain(37, 35, 15, 16, 36, 34, 13, 14);
-
   // Give updTask more stack and have it drain the queue:
-  xTaskCreate(updTask, "UDP Task", 8192, (void*)myPeer, 1, NULL);
+// xTaskCreate(updTask, "UDP Task", 8192, (void*)myPeer, 1, NULL);
 
   // if (motor == nullptr) {
     // motor = new Motor(37, 35);
@@ -291,9 +291,32 @@ void setup() {
 
   Serial.println("Setup complete!");
 
+  // Scan I2C bus to see what devices are present
+  Serial.println("Scanning I2C bus...");
+  for (byte address = 1; address < 127; address++) {
+    Wire.beginTransmission(address);
+    byte error = Wire.endTransmission();
+    if (error == 0) {
+      Serial.printf("I2C device found at address 0x%02X\n", address);
+    }
+  }
+  
+  Wire.beginTransmission(0x6A);
+  byte err6A = Wire.endTransmission();
+  Serial.print("IMU at 0x6A: "); Serial.println(err6A);
+  
+  Wire.beginTransmission(0x6B);
+  byte err6B = Wire.endTransmission();
+  Serial.print("IMU at 0x6B: "); Serial.println(err6B);
+
+  // Allow I2C bus to stabilize after TOF sensor initialization
+  delay(100);
+  
+  drive = new Drivetrain(37, 35, 15, 16, 36, 34, 13, 14);
+
   xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, NULL);
 
-  xTaskCreate(odometryTask, "Odometry Task", 8192, NULL, 1, NULL);
+  // xTaskCreate(odometryTask, "Odometry Task", 8192, NULL, 1, NULL);
 }
 
 float clamp(float x, float min, float max) {
@@ -429,21 +452,21 @@ void loop() {
   //   count = 0;
   // }
 
-  x = (1 - alpha) * x + alpha * (mclPoseStruct.get().x + drive->otosPoseMeasurement.x);
-  y = (1 - alpha) * y + alpha * (mclPoseStruct.get().y + drive->otosPoseMeasurement.y);
+  // x = (1 - alpha) * x + alpha * (mclPoseStruct.get().x + drive->otosPoseMeasurement.x);
+  // y = (1 - alpha) * y + alpha * (mclPoseStruct.get().y + drive->otosPoseMeasurement.y);
 
-  dist = sqrt((x - 730) * (x - 730) + (y - 1080) * (y - 1080));
+  // dist = sqrt((x - 730) * (x - 730) + (y - 1080) * (y - 1080));
 
-  // Serial.print("heading: ");
-  // Serial.print(drive->otosPoseMeasurement.h);
+  // // Serial.print("heading: ");
+  // // Serial.print(drive->otosPoseMeasurement.h);
 
-  correction = clamp(headingPID.update(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
-  dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);
+  // correction = clamp(headingPID.update(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
+  // dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);
   
-  // Serial.print(", correction: ");
-  // Serial.print(correction);
-  // Serial.print("\n");
-  count++;
+  // // Serial.print(", correction: ");
+  // // Serial.print(correction);
+  // // Serial.print("\n");
+  // count++;
 
   if (count > 50) {
     // drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
@@ -453,21 +476,21 @@ void loop() {
   // x = mclPoseStruct.get().x;
   // y = mclPoseStruct.get().y;
 
-  Serial.print(x);
-  Serial.print(", ");
-  Serial.print(y);
-  Serial.print(", ");
-  Serial.print(clamp(correction, -0.7, 0.7));
-  Serial.print(", ");
-  Serial.print(clamp(dist_control, -0.7, 0.7));
+  // Serial.print(x);
+  // Serial.print(", ");
+  // Serial.print(y);
+  // Serial.print(", ");
+  // Serial.print(clamp(correction, -0.7, 0.7));
+  // Serial.print(", ");
+  // Serial.print(clamp(dist_control, -0.7, 0.7));
 
-  Serial.print(", ");
-  Serial.print(drive->otosPoseMeasurement.h);
+  // Serial.print(", ");
+  // Serial.print(drive->otosPoseMeasurement.h);
 
-  Serial.print(", ");
-  Serial.print(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846);
+  // Serial.print(", ");
+  // Serial.print(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846);
 
-  Serial.print("\n");
+  // Serial.print("\n");
 
   // if (currentMillis % 1000 == )
   // double random_val = dis(gen);

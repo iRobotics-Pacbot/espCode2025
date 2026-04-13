@@ -5,6 +5,9 @@
 // #include <Wire.h>
 #include "dataTypes.h"
 #include "Encoder.h"
+#include <Arduino.h>
+#include <ISM330DLCSensor.h>
+
 // extern QueueHandle_t tofQueue;
 // VL53L4CX sensor_vl53l4cx_sat(&Wire, 0);
 
@@ -33,5 +36,7 @@ private:
     float xOffset = 0;
     float yOffset = 0;
 
-    QwiicOTOS otos; // optical tracking odometry sensor
+    // QwiicOTOS otos; // optical tracking odometry sensor
+    ISM330DLCSensor* imu;
+    bool imuReady = false;
 };

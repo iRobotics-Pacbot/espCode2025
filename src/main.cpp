@@ -101,12 +101,12 @@ void sensorTask(void *pvParameters) {
       sensors[i].VL53L4CX_GetMeasurementDataReady(&NewDataReady);
       if (NewDataReady) {
         sensors[i].VL53L4CX_GetMultiRangingData(&MultiRangingData);
-        // Serial.print("S");
-        // Serial.print(i + 1);
-        // Serial.print(": ");
+        Serial.print("S");
+        Serial.print(i + 1);
+        Serial.print(": ");
         if (MultiRangingData.NumberOfObjectsFound > 0) {
-          // Serial.print(MultiRangingData.RangeData[0].RangeMilliMeter);
-          // Serial.print("mm\t");
+          Serial.print(MultiRangingData.RangeData[0].RangeMilliMeter);
+          Serial.print("mm\t");
           data.distances[(i + 2) % 6] = MultiRangingData.RangeData[0].RangeMilliMeter;
           data.stds[(i + 2) % 6] = sqrt(MultiRangingData.RangeData[0].SigmaMilliMeter);
         } else {

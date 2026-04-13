@@ -1,9 +1,6 @@
 #include "Drivetrain.h"
 #include <Wire.h>
-#include <ISM330DLCSensor.h>
-
-// ISM330DLC register addresses for software reset
-#define ISM330DLC_CTRL3_C 0x12
+#include <Adafruit_BNO08x.h>
 
 Drivetrain::Drivetrain(int leftMotorPwm1, int leftMotorPwm2, int rightMotorPwm1, int rightMotorPwm2, int leftEncoderA, int leftEncoderB, int rightEncoderA, int rightEncoderB) {
     leftMotor = new Motor(leftMotorPwm1, leftMotorPwm2);
@@ -23,57 +20,35 @@ Drivetrain::Drivetrain(int leftMotorPwm1, int leftMotorPwm2, int rightMotorPwm1,
     leftEncoder = new Encoder(leftEncoderA, leftEncoderB);
     rightEncoder = new Encoder(rightEncoderA, rightEncoderB);
 
-    imu = new ISM330DLCSensor(&Wire);
-
-    // Software reset the IMU to clear any stale I2C state
-    // This is critical when sharing the I2C bus with ToF sensors
-    uint8_t resetVal = 0x01; // SW_RESET bit in CTRL3_C
-    Wire.beginTransmission(0x6B); // ISM330DLC default address (0xD6 >> 1)
-    Wire.write(ISM330DLC_CTRL3_C);
-    Wire.write(resetVal);
-    byte resetErr = Wire.endTransmission();
-    if (resetErr != 0) {
-        // Try alternate address 0x6A (SDO/SA0 pulled LOW)
-        Wire.beginTransmission(0x6A);
-        Wire.write(ISM330DLC_CTRL3_C);
-        Wire.write(resetVal);
-        resetErr = Wire.endTransmission();
-        if (resetErr != 0) {
-            Serial.printf("IMU software reset failed at both 0x6B and 0x6A, error: %d\n", resetErr);
-        } else {
-            Serial.println("IMU found at 0x6A (not default 0x6B)");
-        }
-    }
-    delay(50); // Wait for reset to complete
+    imu = new Adafruit_BNO08x();
 
     int retries = 0;
-    while (imu->begin() != 0) {
-        Serial.printf("IMU begin() failed! retry %d\n", retries);
+    while (!imu->begin_I2C()) {
+        Serial.printf("BNO085 begin failed! retry %d\n", retries);
         delay(100);
         retries++;
         if (retries > 10) {
-            Serial.println("IMU begin() failed after 10 retries, continuing without IMU");
+            Serial.println("BNO085 begin failed after 10 retries, continuing without IMU");
             imuReady = false;
             return;
         }
     }
-    Serial.println("IMU begin() OK");
+    Serial.println("BNO085 begin OK");
 
-    if (imu->Enable_X() != 0) {
-        Serial.println("IMU Enable_X() failed!");
-        imuReady = false;
-        return;
+    // Enable gyroscope and accelerometer reports at 50ms intervals (20Hz)
+    // Matches the sensorTask vTaskDelay(50) to prevent event buildup
+    if (!imu->enableReport(SH2_GYROSCOPE_CALIBRATED, 10000)) { 
+        Serial.println("BNO085: failed to enable gyroscope report");
     }
-    Serial.println("IMU Enable_X() OK");
+    if (!imu->enableReport(SH2_ACCELEROMETER, 10000)) { 
+        Serial.println("BNO085: failed to enable accelerometer report");
+    }
+    if (!imu->enableReport(SH2_ROTATION_VECTOR, 10000)) { 
+        Serial.println("BNO085: failed to enable rotation vector report");
+    }
 
-    if (imu->Enable_G() != 0) {
-        Serial.println("IMU Enable_G() failed!");
-        imuReady = false;
-        return;
-    }
-    Serial.println("IMU Enable_G() OK");
+    Serial.println("BNO085 fully configured");
     imuReady = true;
-
 }
 
 void Drivetrain::setSpeeds(double leftDutyCycle, double rightDutyCycle) {
@@ -98,16 +73,27 @@ void Drivetrain::readSensors() {
     encoderMeasurements.rightEncoderX = rightEncoder->read();
 
     if (imuReady) {
-        int32_t acceleration[3];
-        int32_t angular_rate[3];
-        if (imu->Get_X_Axes(acceleration) != 0) {
-            Serial.println("IMU Get_X_Axes failed");
-        }
-        if (imu->Get_G_Axes(angular_rate) != 0) {
-            Serial.println("IMU Get_G_Axes failed");
-        } else {
-            Serial.print("IMU gyro Z: ");
-            Serial.println(angular_rate[2]);
+        // Drain all available sensor events from the BNO085
+        while (imu->getSensorEvent(&sensorValue)) {
+            switch (sensorValue.sensorId) {
+                case SH2_GYROSCOPE_CALIBRATED:
+                    Serial.printf("Gyro: x=%.2f y=%.2f z=%.2f\n",
+                        sensorValue.un.gyroscope.x,
+                        sensorValue.un.gyroscope.y,
+                        sensorValue.un.gyroscope.z);
+                    break;
+                case SH2_ACCELEROMETER:
+                    // sensorValue.un.accelerometer.x, .y, .z available
+                    break;
+                case SH2_ROTATION_VECTOR:
+                    // sensorValue.un.rotationVector.i, .j, .k, .real available
+                    Serial.printf("Rotation Vector: i=%.2f j=%.2f k=%.2f real=%.2f\n",
+                        sensorValue.un.rotationVector.i,
+                        sensorValue.un.rotationVector.j,
+                        sensorValue.un.rotationVector.k,
+                        sensorValue.un.rotationVector.real);
+                    break;
+            }
         }
     }
 }

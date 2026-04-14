@@ -87,11 +87,20 @@ void Drivetrain::readSensors() {
                     break;
                 case SH2_ROTATION_VECTOR:
                     // sensorValue.un.rotationVector.i, .j, .k, .real available
+                    double q_real = sensorValue.un.rotationVector.real;
+                    double q_x = sensorValue.un.rotationVector.i;
+                    double q_y = sensorValue.un.rotationVector.j;
+                    double q_z = sensorValue.un.rotationVector.k;
                     Serial.printf("Rotation Vector: i=%.2f j=%.2f k=%.2f real=%.2f\n",
-                        sensorValue.un.rotationVector.i,
-                        sensorValue.un.rotationVector.j,
-                        sensorValue.un.rotationVector.k,
-                        sensorValue.un.rotationVector.real);
+                        q_x,
+                        q_y,
+                        q_z,
+                        q_real);
+                    double yaw = std::atan2(
+                        2 * (q_real * q_z + q_x * q_y),
+                        1 - 2 * (q_y * q_y + q_z * q_z)
+                    );
+                    //yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
                     break;
             }
         }

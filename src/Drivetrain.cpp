@@ -49,6 +49,32 @@ Drivetrain::Drivetrain(int leftMotorPwm1, int leftMotorPwm2, int rightMotorPwm1,
 
     Serial.println("BNO085 fully configured");
     imuReady = true;
+
+    // Zero the IMU in constructor by waiting for the first valid rotation vector
+    Serial.println("Waiting for initial IMU reading to zero heading...");
+    unsigned long startWait = millis();
+    bool zeroed = false;
+    while (millis() - startWait < 2000 && !zeroed) {
+        if (imu->getSensorEvent(&sensorValue)) {
+            if (sensorValue.sensorId == SH2_ROTATION_VECTOR) {
+                double q_real = sensorValue.un.rotationVector.real;
+                double q_x = sensorValue.un.rotationVector.i;
+                double q_y = sensorValue.un.rotationVector.j;
+                double q_z = sensorValue.un.rotationVector.k;
+                
+                hOffset = std::atan2(
+                    2 * (q_real * q_z + q_x * q_y),
+                    1 - 2 * (q_y * q_y + q_z * q_z)
+                );
+                zeroed = true;
+                Serial.printf("IMU Zeroed! Initial heading offset: %.2f\n", hOffset);
+            }
+        }
+        delay(10);
+    }
+    if (!zeroed) {
+        Serial.println("Warning: IMU failed to provide initial reading for zeroing.");
+    }
 }
 
 void Drivetrain::setSpeeds(double leftDutyCycle, double rightDutyCycle) {
@@ -91,15 +117,17 @@ void Drivetrain::readSensors() {
                     double q_x = sensorValue.un.rotationVector.i;
                     double q_y = sensorValue.un.rotationVector.j;
                     double q_z = sensorValue.un.rotationVector.k;
-                    Serial.printf("Rotation Vector: i=%.2f j=%.2f k=%.2f real=%.2f\n",
-                        q_x,
-                        q_y,
-                        q_z,
-                        q_real);
+                    // Serial.printf("Rotation Vector: i=%.2f j=%.2f k=%.2f real=%.2f\n",
+                    //     q_x,
+                    //     q_y,
+                    //     q_z,
+                    //     q_real);
                     double yaw = std::atan2(
                         2 * (q_real * q_z + q_x * q_y),
                         1 - 2 * (q_y * q_y + q_z * q_z)
                     );
+                    otosPoseMeasurement.h = yaw - hOffset;
+                    Serial.printf("Yaw: %.2f\n", otosPoseMeasurement.h);
                     //yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
                     break;
             }
@@ -110,4 +138,5 @@ void Drivetrain::readSensors() {
 void Drivetrain::zero() {
     xOffset = otosPoseMeasurement.x;
     yOffset = otosPoseMeasurement.y;
+    hOffset += otosPoseMeasurement.h;
 }

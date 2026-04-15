@@ -37,6 +37,10 @@ private:
     float yOffset = 0;
     float hOffset = 0;
 
+    float lastLeftEncoder = 0;
+    float lastRightEncoder = 0;
+    unsigned long lastTime = 0;
+
     // QwiicOTOS otos; // optical tracking odometry sensor
     Adafruit_BNO08x* imu;
     sh2_SensorValue_t sensorValue;

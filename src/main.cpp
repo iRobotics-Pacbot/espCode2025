@@ -101,12 +101,12 @@ void sensorTask(void *pvParameters) {
       sensors[i].VL53L4CX_GetMeasurementDataReady(&NewDataReady);
       if (NewDataReady) {
         sensors[i].VL53L4CX_GetMultiRangingData(&MultiRangingData);
-        Serial.print("S");
-        Serial.print(i + 1);
-        Serial.print(": ");
+        // Serial.print("S");
+        // Serial.print(i + 1);
+        // Serial.print(": ");
         if (MultiRangingData.NumberOfObjectsFound > 0) {
-          Serial.print(MultiRangingData.RangeData[0].RangeMilliMeter);
-          Serial.print("mm\t");
+          // Serial.print(MultiRangingData.RangeData[0].RangeMilliMeter);
+          // Serial.print("mm\t");
           data.distances[(i + 2) % 6] = MultiRangingData.RangeData[0].RangeMilliMeter;
           data.stds[(i + 2) % 6] = sqrt(MultiRangingData.RangeData[0].SigmaMilliMeter);
         } else {
@@ -115,18 +115,31 @@ void sensorTask(void *pvParameters) {
       }
       sensors[i].VL53L4CX_ClearInterruptAndStartMeasurement();
     }
+    Serial.println();
 
     // vTaskDelay(pdMS_TO_TICKS(25));
 
     drive->readSensors();
 
     tofStruct.set(data); // single atomic write after all sensors are polled
-    Serial.println("Read");
+
+    auto data2 = odoStruct.get();
+    data2.pos.x = drive->otosPoseMeasurement.x;
+    data2.pos.y = drive->otosPoseMeasurement.y;
+    data2.pos.h = drive->otosPoseMeasurement.h;
+
+    data2.vel.x = drive->otosVelocityMeasurement.x;
+    data2.vel.y = drive->otosVelocityMeasurement.y;
+    data2.vel.h = drive->otosVelocityMeasurement.h;
+
+    odoStruct.set(data2);
+
+    // Serial.println("Read");
     // Serial.print("data test: ");
     // Serial.println(tofStruct.get().distances[0]);
     // Serial.println(tofStruct.get().stds[0]);
 
-    // xSemaphoreGive(sensorDoneSem);
+    xSemaphoreGive(sensorDoneSem);
 
     vTaskDelay(pdMS_TO_TICKS(50));
   }
@@ -225,7 +238,7 @@ void setup() {
     
   // analogWriteFrequency(100000);
   // analogWriteResolution(15);
-// myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
+  myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
 
   // In setup():
   sendQueue = xQueueCreate(10, 64); // 10 messages, 128 bytes each
@@ -233,7 +246,7 @@ void setup() {
   sensorDoneSem = xSemaphoreCreateBinary();
 
   // Give updTask more stack and have it drain the queue:
-// xTaskCreate(updTask, "UDP Task", 8192, (void*)myPeer, 1, NULL);
+// 
 
   // if (motor == nullptr) {
     // motor = new Motor(37, 35);
@@ -317,6 +330,7 @@ void setup() {
   xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, NULL);
 
   // xTaskCreate(odometryTask, "Odometry Task", 8192, NULL, 1, NULL);
+  xTaskCreate(updTask, "UDP Task", 8192, (void*)myPeer, 1, NULL);
 }
 
 float clamp(float x, float min, float max) {

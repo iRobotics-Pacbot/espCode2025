@@ -97,16 +97,39 @@ void Drivetrain::readSensors() {
     // w = otos_velocity_measurement.h;
     encoderMeasurements.leftEncoderX = leftEncoder->read();
     encoderMeasurements.rightEncoderX = rightEncoder->read();
+    Serial.printf("Encoders - Left: %.2f, Right: %.2f\n", 
+                  encoderMeasurements.leftEncoderX, 
+                  encoderMeasurements.rightEncoderX);
+
+    unsigned long currentTime = millis();
+    if (lastTime > 0) {
+        double dt = (currentTime - lastTime) / 1000.0;
+        if (dt > 0) {
+            double deltaLeft = encoderMeasurements.leftEncoderX - lastLeftEncoder;
+            double deltaRight = encoderMeasurements.rightEncoderX - lastRightEncoder;
+            
+            // Wheel diameter: 32mm, Encoder counts per revolution: 437
+            double distance_mm_per_count = (32.0 * 3.14159265359) / 437.0;
+            double v_forward_mm_s = ((deltaLeft + deltaRight) / 2.0) * distance_mm_per_count / dt;
+            
+            otosVelocityMeasurement.x = -v_forward_mm_s * cos(otosPoseMeasurement.h);
+            otosVelocityMeasurement.y = -v_forward_mm_s * sin(otosPoseMeasurement.h);
+        }
+    }
+    lastLeftEncoder = encoderMeasurements.leftEncoderX;
+    lastRightEncoder = encoderMeasurements.rightEncoderX;
+    lastTime = currentTime;
 
     if (imuReady) {
         // Drain all available sensor events from the BNO085
         while (imu->getSensorEvent(&sensorValue)) {
             switch (sensorValue.sensorId) {
                 case SH2_GYROSCOPE_CALIBRATED:
-                    Serial.printf("Gyro: x=%.2f y=%.2f z=%.2f\n",
-                        sensorValue.un.gyroscope.x,
-                        sensorValue.un.gyroscope.y,
-                        sensorValue.un.gyroscope.z);
+                    // Serial.printf("Gyro: x=%.2f y=%.2f z=%.2f\n",
+                    //     sensorValue.un.gyroscope.x,
+                    //     sensorValue.un.gyroscope.y,
+                    //     sensorValue.un.gyroscope.z);
+                    otosVelocityMeasurement.h = sensorValue.un.gyroscope.z;
                     break;
                 case SH2_ACCELEROMETER:
                     // sensorValue.un.accelerometer.x, .y, .z available
@@ -127,7 +150,7 @@ void Drivetrain::readSensors() {
                         1 - 2 * (q_y * q_y + q_z * q_z)
                     );
                     otosPoseMeasurement.h = yaw - hOffset;
-                    Serial.printf("Yaw: %.2f\n", otosPoseMeasurement.h);
+                    // Serial.printf("Yaw: %.2f\n", otosPoseMeasurement.h);
                     //yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
                     break;
             }

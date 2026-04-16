@@ -124,19 +124,6 @@ void plannerStep() {
 
 void testUDP(UDPPeer* udp);
 
-const int xshutPins[6] = {38, 39, 40, 41, 42, 12};
-// const int LDO2_ENABLE_PIN = 17;
-
-VL53L4CX sensors[6] = {
-  VL53L4CX(&Wire, xshutPins[0]),
-  VL53L4CX(&Wire, xshutPins[1]),
-  VL53L4CX(&Wire, xshutPins[2]),
-  VL53L4CX(&Wire, xshutPins[3]),
-  VL53L4CX(&Wire, xshutPins[4]),
-  VL53L4CX(&Wire, xshutPins[5])
-};
-
-uint8_t sensorAddresses[6] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x36};
 
 //Safestruct instantiation 
 SafeStruct<OdoPose> odoStruct;
@@ -321,23 +308,14 @@ void odometryTask(void* param)
 
 #define XSHUT_PIN 38
 void setup() {
-  // Setup Serial
+    // Setup Serial
   Serial.begin(115200);
 
   // Setup Wire
-  Wire.begin();
+  Wire.begin(8, 9);
   Wire.setClock(100000);
 
-
-  //Safestruct instantiation 
-  SafeStruct<OdoPose> odoStruct;
-  SafeStruct<TOF_t> tofStruct;
-  SafeStruct<MclPose> mclPoseStruct;
-  SafeStruct<Velos> veloStruct; 
-  SafeStruct<Path> pathStruct;
-
   //task class instantiation
-  //myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
   pinMode(17, OUTPUT);
   digitalWrite(17, HIGH);
 
@@ -664,39 +642,39 @@ void loop() {
   //   }
   //   sensor1->VL53L4CX_ClearInterruptAndStartMeasurement();
   // }
-  detector.newCalc(sensor_measurements, tree_width, tree_height, vert, horiz);
-  Serial.println("horiz");
-  for(Line line: horiz) {
-    Serial.print("[");
-    Serial.print("[ ");
-    Serial.print(line.start.x);
-    Serial.print(", ");
-    Serial.print(line.start.y);
-    Serial.print(" ]");
-    Serial.print("[ ");
-    Serial.print(line.end.x);
-    Serial.print(", ");
-    Serial.print(line.end.y);
-    Serial.print(" ]");
-    Serial.println("]");
-  }
-  Serial.println("vert");
-  for(Line line: vert) {
-    Serial.print("[");
-    Serial.print("[ ");
-    Serial.print(line.start.x);
-    Serial.print(", ");
-    Serial.print(line.start.y);
-    Serial.print(" ]");
-    Serial.print("[ ");
-    Serial.print(line.end.x);
-    Serial.print(", ");
-    Serial.print(line.end.y);
-    Serial.print(" ]");
-    Serial.println("]");
-  }
+  // MclPose pos = mclPoseStruct.get();
+  // detector.newCalc(sensor_measurements, pos, drive->otosPoseMeasurement.h, tree_width, tree_height, vert, horiz);
+  // Serial.println("horiz");
+  // for(Line line: horiz) {
+  //   Serial.print("[");
+  //   Serial.print("[ ");
+  //   Serial.print(line.start.x);
+  //   Serial.print(", ");
+  //   Serial.print(line.start.y);
+  //   Serial.print(" ]");
+  //   Serial.print("[ ");
+  //   Serial.print(line.end.x);
+  //   Serial.print(", ");
+  //   Serial.print(line.end.y);
+  //   Serial.print(" ]");
+  //   Serial.println("]");
+  // }
+  // Serial.println("vert");
+  // for(Line line: vert) {
+  //   Serial.print("[");
+  //   Serial.print("[ ");
+  //   Serial.print(line.start.x);
+  //   Serial.print(", ");
+  //   Serial.print(line.start.y);
+  //   Serial.print(" ]");
+  //   Serial.print("[ ");
+  //   Serial.print(line.end.x);
+  //   Serial.print(", ");
+  //   Serial.print(line.end.y);
+  //   Serial.print(" ]");
+  //   Serial.println("]");
+  // }
   //plannerStep();
-  delay(100);
 }
 
 

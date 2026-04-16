@@ -1,4 +1,5 @@
 #include "WallDetector.h"
+#include "dataTypes.h"
 #include <Arduino.h>
 #include <cmath>
 
@@ -8,7 +9,7 @@ WallDetector::WallDetector(std::vector<std::vector<double>>& sensorPoses) {
 }
 
 std::vector<Point> WallDetector::computePoints(
-    const double sensor_measurements[6]) {
+    const double sensor_measurements[6], MclPose &robot_pose, double heading) {
 
     std::vector<Point> points(6);
 
@@ -20,11 +21,11 @@ std::vector<Point> WallDetector::computePoints(
 
         double dist = sensor_measurements[i];
 
-        // points[i].x = rx + cos(theta) * sx - sin(theta) * sy + cos(stheta + theta) * dist;
-        points[i].x = sx + (dist * cos(stheta));
+        points[i].x = robot_pose.x + cos(heading) * sx - sin(heading) * sy + cos(stheta + heading) * dist;
+        //points[i].x = sx + (dist * cos(stheta));
 
-       // points[i].y = ry + sin(theta) * sx + cos(theta) * sy + sin(stheta + theta) * dist;
-        points[i].y = sy + (dist * sin(stheta));
+        points[i].y = robot_pose.x + sin(heading) * sx + cos(heading) * sy + sin(stheta + heading) * dist;
+        //points[i].y = sy + (dist * sin(stheta));
     }
 
     return points;
@@ -33,11 +34,13 @@ std::vector<Point> WallDetector::computePoints(
 
 void WallDetector::newCalc(
     const double sensor_measurements[6],
+    MclPose& robot_pose,
+    double heading,
     double width, double height,
     std::vector<Line>& out_vert,
     std::vector<Line>& out_horiz) {
 
-    std::vector<Point> points = computePoints(sensor_measurements);
+    std::vector<Point> points = computePoints(sensor_measurements, robot_pose, heading);
     Serial.println("points");
     for(Point point: points) {
         Serial.print(point.x);
@@ -45,12 +48,12 @@ void WallDetector::newCalc(
         Serial.println(point.y);
     }
 
-    double fieldRelXMax = width / 2.0;
-    double fieldRelXMin = width / 2.0;
-    double fieldRelYMax = height / 2.0;
-    double fieldRelYMin = height / 2.0;
+    double fieldRelXMax = robot_pose.x + width / 2.0;
+    double fieldRelXMin = robot_pose.x + width / 2.0;
+    double fieldRelYMax = robot_pose.y + height / 2.0;
+    double fieldRelYMin = robot_pose.y + height / 2.0;
 
-    double threshold = 5.0;
+    double threshold = 10.0;
     double threshold2 = 15.0;
 
     for (int i = 0; i < 6; i++) {

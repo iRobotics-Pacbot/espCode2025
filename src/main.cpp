@@ -14,7 +14,8 @@
 #include "Drivetrain.h"
 #include "pid.h"
 #include <random>
-#include <cmath>#include "RRT.h"
+#include <cmath>
+#include "RRT.h"
 #include "Astar.h"
 #include "WallDetector.h"
 
@@ -663,6 +664,39 @@ void loop() {
   //   }
   //   sensor1->VL53L4CX_ClearInterruptAndStartMeasurement();
   // }
+  detector.newCalc(sensor_measurements, tree_width, tree_height, vert, horiz);
+  Serial.println("horiz");
+  for(Line line: horiz) {
+    Serial.print("[");
+    Serial.print("[ ");
+    Serial.print(line.start.x);
+    Serial.print(", ");
+    Serial.print(line.start.y);
+    Serial.print(" ]");
+    Serial.print("[ ");
+    Serial.print(line.end.x);
+    Serial.print(", ");
+    Serial.print(line.end.y);
+    Serial.print(" ]");
+    Serial.println("]");
+  }
+  Serial.println("vert");
+  for(Line line: vert) {
+    Serial.print("[");
+    Serial.print("[ ");
+    Serial.print(line.start.x);
+    Serial.print(", ");
+    Serial.print(line.start.y);
+    Serial.print(" ]");
+    Serial.print("[ ");
+    Serial.print(line.end.x);
+    Serial.print(", ");
+    Serial.print(line.end.y);
+    Serial.print(" ]");
+    Serial.println("]");
+  }
+  //plannerStep();
+  delay(100);
 }
 
 

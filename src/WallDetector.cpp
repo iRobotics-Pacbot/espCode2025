@@ -40,7 +40,15 @@ void WallDetector::newCalc(
     std::vector<Line>& out_vert,
     std::vector<Line>& out_horiz) {
 
+    bool initialized = false;
+
     std::vector<Point> points = computePoints(sensor_measurements, robot_pose, heading);
+    if (!initialized) {
+        prev_readings = points;
+        initialized = true;
+        return; 
+    }
+
     Serial.println("points");
     for(Point point: points) {
         Serial.print(point.x);

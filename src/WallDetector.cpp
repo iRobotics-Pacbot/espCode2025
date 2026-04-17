@@ -24,7 +24,7 @@ std::vector<Point> WallDetector::computePoints(
         points[i].x = robot_pose.x + cos(heading) * sx - sin(heading) * sy + cos(stheta + heading) * dist;
         //points[i].x = sx + (dist * cos(stheta));
 
-        points[i].y = robot_pose.x + sin(heading) * sx + cos(heading) * sy + sin(stheta + heading) * dist;
+        points[i].y = robot_pose.y + sin(heading) * sx + cos(heading) * sy + sin(stheta + heading) * dist;
         //points[i].y = sy + (dist * sin(stheta));
     }
 
@@ -49,9 +49,9 @@ void WallDetector::newCalc(
     }
 
     double fieldRelXMax = robot_pose.x + width / 2.0;
-    double fieldRelXMin = robot_pose.x + width / 2.0;
+    double fieldRelXMin = robot_pose.x - width / 2.0;
     double fieldRelYMax = robot_pose.y + height / 2.0;
-    double fieldRelYMin = robot_pose.y + height / 2.0;
+    double fieldRelYMin = robot_pose.y - height / 2.0;
 
     double threshold = 10.0;
     double threshold2 = 15.0;
@@ -212,14 +212,14 @@ Point WallDetector::pointWithinRange(Point p,
                                      double xmin, double xmax,
                                      double ymin, double ymax) {
     if (p.x > xmax) p.x = xmax;
-    if (p.x < xmin) p.x = -xmin;
+    if (p.x < xmin) p.x = xmin;
     if (p.y > ymax) p.y = ymax;
-    if (p.y < ymin) p.y = -ymin;
+    if (p.y < ymin) p.y = ymin;
     return p;
 }
 
 bool WallDetector::isPointWithinRange(const Point& p,
                                       double xmin, double xmax,
                                       double ymin, double ymax) {
-    return (p.x > xmax || p.x < -xmin || p.y > ymax || p.y < -ymin);
+    return (p.x <= xmax && p.x >= xmin && p.y <= ymax && p.y >= ymin);
 }

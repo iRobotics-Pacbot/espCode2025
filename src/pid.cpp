@@ -1,58 +1,70 @@
-#include "PID.h"
+#include "pid.h"
 #include <cmath>
 #include <algorithm>
 
-// ---------- Helper ----------
-double PID::wrapToPi(double angle) {
-    while (angle > M_PI) angle -= 2.0 * M_PI;
-    while (angle < -M_PI) angle += 2.0 * M_PI;
-    return angle;
-}
-
-// ---------- Constructor ----------
 PID::PID(double kp, double ki, double kd,
-         double out_min, double out_max,
+         double out_min,
+         double out_max,
          bool wrap_angle)
-    : kp(kp), ki(ki), kd(kd),
-      integral(0.0), prev_error(0.0),
-      output_min(out_min), output_max(out_max),
-      wrap_angle(wrap_angle) {}
+{
+    this->kp = kp;
+    this->ki = ki;
+    this->kd = kd;
 
-// ---------- Reset ----------
-void PID::reset() {
+    this->output_min = out_min;
+    this->output_max = out_max;
+
+    this->wrap_angle = wrap_angle;
+
     integral = 0.0;
     prev_error = 0.0;
 }
 
-// ---------- Update ----------
-double PID::update(double setpoint, double measurement, double dt) {
-    if (dt <= 0.0) return 0.0;
+void PID::reset()
+{
+    integral = 0.0;
+    prev_error = 0.0;
+}
 
-    // Compute error
+double PID::wrapToPi(double angle)
+{
+    angle = fmod(angle + M_PI, 2 * M_PI);
+
+    if (angle < 0)
+        angle += 2 * M_PI;
+
+    return angle - M_PI;
+}
+
+double PID::update(double setpoint, double measurement, double dt)
+{
     double error = setpoint - measurement;
 
-    if (wrap_angle) {
+    if (wrap_angle)
         error = wrapToPi(error);
-    }
 
-    // Integral term
-    integral += error * dt;
-
-    // Derivative term
     double derivative = (error - prev_error) / dt;
 
-    // PID output before clamping
-    double output = kp * error + ki * integral + kd * derivative;
+    // Tentative output (before clamping)
+    double output = kp * error +
+                    ki * integral +
+                    kd * derivative;
 
     // Clamp output
-    double clamped_output = std::clamp(output, output_min, output_max);
+    if (output > output_max)
+        output = output_max;
+    else if (output < output_min)
+        output = output_min;
 
-    // Anti-windup (simple: only integrate if not saturated)
-    if (output != clamped_output) {
-        integral -= error * dt;  // undo integration
+    // Anti-windup: only integrate when output is not saturated,
+    // or when the error would reduce the integral (drive it back in-bounds).
+    double tentative_integral = integral + error * dt;
+    double test_output = kp * error + ki * tentative_integral + kd * derivative;
+    if (test_output <= output_max && test_output >= output_min) {
+        integral = tentative_integral;
     }
 
     prev_error = error;
 
-    return clamped_output;
+    return output;
 }

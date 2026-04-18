@@ -13,6 +13,7 @@
 #include "pid.h"
 #include <random>
 #include <cmath>
+#include "WallFollower.h"
 
 void testUDP(UDPPeer* udp);
 
@@ -134,7 +135,8 @@ void sensorTask(void *pvParameters) {
     // vTaskDelay(pdMS_TO_TICKS(25));
 
     drive->readSensors();
-    drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
+    // drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
+    drive->setSpeeds(leftSpeed, rightSpeed);
 
     tofStruct.set(data); // single atomic write after all sensors are polled
 
@@ -447,6 +449,14 @@ void loop() {
 
   front = clamp(tofStruct.get().distances[0], 0.0, 500.0);
   back = clamp(tofStruct.get().distances[3], 0.0, 500.0);
+
+  Wheels wheels = wall_follow(front, back);
+  leftSpeed = wheels.left;
+  rightSpeed = wheels.right;
+
+  Serial.println(leftSpeed);
+  Serial.println(rightSpeed);
+  Serial.println("-----------------");
 
   // Serial.println(front);
   // Serial.println(back);

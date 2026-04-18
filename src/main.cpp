@@ -90,6 +90,20 @@ float y;
 //   }
 // }
 
+float clamp(float x, float min, float max) {
+  if (x < min) {
+    return min;
+  }
+
+  if (x > max) {
+    return max;
+  }
+
+  return x;
+}
+
+
+
 void sensorTask(void *pvParameters) {
   while(1) {
     auto data = tofStruct.get(); // snapshot
@@ -120,6 +134,7 @@ void sensorTask(void *pvParameters) {
     // vTaskDelay(pdMS_TO_TICKS(25));
 
     drive->readSensors();
+      //drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
 
     tofStruct.set(data); // single atomic write after all sensors are polled
 
@@ -333,17 +348,6 @@ void setup() {
   xTaskCreate(updTask, "UDP Task", 8192, (void*)myPeer, 1, NULL);
 }
 
-float clamp(float x, float min, float max) {
-  if (x < min) {
-    return min;
-  }
-
-  if (x > max) {
-    return max;
-  }
-
-  return x;
-}
 
 void loop() {  
   // Serial.println("Hello, ESP8266!");
@@ -480,10 +484,10 @@ void loop() {
   // // Serial.print(", correction: ");
   Serial.print(correction);
   // // Serial.print("\n");
-  // count++;
+  count++;
 
   if (count > 50) {
-    drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
+    //drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
   }
   // drive->setSpeeds(0.0, 0.0);
 

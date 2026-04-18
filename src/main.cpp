@@ -351,9 +351,6 @@ void setup() {
 
 void loop() {  
   double reference = atan2(2227 - y, 127 - x);
-  if (reference <0){
-    reference+= 2*M_PI;
-  }
   Serial.print(String("reference:") + reference);
   // Serial.println("Hello, ESP8266!");
   delay(100);

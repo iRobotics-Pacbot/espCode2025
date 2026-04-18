@@ -135,8 +135,11 @@ void Drivetrain::readSensors() {
                         2 * (q_real * q_z + q_x * q_y),
                         1 - 2 * (q_y * q_y + q_z * q_z)
                     );
-                    yaw = fmod(yaw, 2 * M_PI);
-                    otosPoseMeasurement.h = yaw - hOffset;
+                    // Normalize to [0, 2π]
+                    double heading = fmod(yaw - hOffset, 2 * M_PI);
+                    if (heading < 0)
+                        heading += 2 * M_PI;
+                    otosPoseMeasurement.h = heading;
                     break;
                 }
                 default:

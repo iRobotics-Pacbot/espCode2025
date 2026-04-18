@@ -26,7 +26,7 @@ private:
     SafeStruct<MclPose>& mclposeRef;
     SafeStruct<Path>& pathRef;
 
-    static constexpr const char* LAPTOP_IP = "192.168.0.101";
+    static constexpr const char* LAPTOP_IP = "192.168.0.100";
     static constexpr uint16_t PORT = 8089;
     static constexpr const char* ssid = "Pacbot_Server";
     static constexpr const char* password = "Pacbot#2024!";

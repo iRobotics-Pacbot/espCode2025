@@ -474,7 +474,7 @@ void loop() {
   // // Serial.print("heading: ");
   // // Serial.print(drive->otosPoseMeasurement.h);
 
-  // correction = clamp(headingPID.update(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
+  correction = clamp(headingPID.update(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
   // dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);
   
   // // Serial.print(", correction: ");

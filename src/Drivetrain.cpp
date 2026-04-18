@@ -121,7 +121,8 @@ void Drivetrain::readSensors() {
     lastTime = currentTime;
 
     if (imuReady) {
-        if (imu->getSensorEvent(&sensorValue)) {
+        // Drain all pending events instead of reading just one
+        while (imu->getSensorEvent(&sensorValue)) {
             switch (sensorValue.sensorId) {
                 case SH2_GYROSCOPE_CALIBRATED:
                     otosVelocityMeasurement.h = sensorValue.un.gyroscope.z;
@@ -135,7 +136,6 @@ void Drivetrain::readSensors() {
                         2 * (q_real * q_z + q_x * q_y),
                         1 - 2 * (q_y * q_y + q_z * q_z)
                     );
-                    // Normalize to [0, 2π]
                     double heading = fmod(yaw - hOffset, 2 * M_PI);
                     if (heading < 0)
                         heading += 2 * M_PI;

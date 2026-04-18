@@ -121,37 +121,25 @@ void Drivetrain::readSensors() {
     lastTime = currentTime;
 
     if (imuReady) {
-        // Drain all available sensor events from the BNO085
-        while (imu->getSensorEvent(&sensorValue)) {
+        if (imu->getSensorEvent(&sensorValue)) {
             switch (sensorValue.sensorId) {
                 case SH2_GYROSCOPE_CALIBRATED:
-                    // Serial.printf("Gyro: x=%.2f y=%.2f z=%.2f\n",
-                    //     sensorValue.un.gyroscope.x,
-                    //     sensorValue.un.gyroscope.y,
-                    //     sensorValue.un.gyroscope.z);
                     otosVelocityMeasurement.h = sensorValue.un.gyroscope.z;
                     break;
-                case SH2_ACCELEROMETER:
-                    // sensorValue.un.accelerometer.x, .y, .z available
-                    break;
-                case SH2_ROTATION_VECTOR:
-                    // sensorValue.un.rotationVector.i, .j, .k, .real available
+                case SH2_ROTATION_VECTOR: {
                     double q_real = sensorValue.un.rotationVector.real;
                     double q_x = sensorValue.un.rotationVector.i;
                     double q_y = sensorValue.un.rotationVector.j;
                     double q_z = sensorValue.un.rotationVector.k;
-                    // Serial.printf("Rotation Vector: i=%.2f j=%.2f k=%.2f real=%.2f\n",
-                    //     q_x,
-                    //     q_y,
-                    //     q_z,
-                    //     q_real);
                     double yaw = std::atan2(
                         2 * (q_real * q_z + q_x * q_y),
                         1 - 2 * (q_y * q_y + q_z * q_z)
                     );
+                    yaw = fmod(yaw, 2 * M_PI);
                     otosPoseMeasurement.h = yaw - hOffset;
-                    // Serial.printf("Yaw: %.2f\n", otosPoseMeasurement.h);
-                    //yaw = math.atan2(2 * (q_w * q_z + q_x * q_y), 1 - 2 * (q_y**2 + q_z**2))
+                    break;
+                }
+                default:
                     break;
             }
         }

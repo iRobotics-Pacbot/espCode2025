@@ -28,12 +28,12 @@ void PID::reset()
 
 double PID::wrapToPi(double angle)
 {
-    angle = fmod(angle + 180, 2 * 180);
+    angle = fmod(angle + M_PI, 2 * M_PI);
 
     if (angle < 0)
-        angle += 2 * 180;
+        angle += 2 * M_PI;
 
-    return angle - 180;
+    return angle - M_PI;
 }
 
 double PID::update(double setpoint, double measurement, double dt)

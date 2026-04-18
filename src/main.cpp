@@ -133,7 +133,7 @@ void sensorTask(void *pvParameters) {
 
     // vTaskDelay(pdMS_TO_TICKS(25));
 
-    //drive->readSensors();
+    drive->readSensors();
     drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
 
     tofStruct.set(data); // single atomic write after all sensors are polled
@@ -350,6 +350,11 @@ void setup() {
 
 
 void loop() {  
+  double reference = atan2(2227 - y, 127 - x);
+  if (reference <0){
+    reference+= 2*M_PI;
+  }
+  Serial.print(String("reference:") + reference);
   // Serial.println("Hello, ESP8266!");
   delay(100);
   // motor->setThrottle(0.0);
@@ -479,7 +484,7 @@ void loop() {
   Serial.println(drive->otosPoseMeasurement.h);
   Serial.println(String("atan2:") + atan2(2227 - y, 127 - x));
 
-  correction = clamp(headingPID.update(atan2(2227 - y, 127 - x), drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
+  correction = clamp(headingPID.update(reference, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
   if (correction >=-.1 && correction <= .1){
     correction = 0.0;
   }

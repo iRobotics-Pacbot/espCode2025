@@ -2,9 +2,9 @@
 #include <atomic>
 #include "dataTypes.h"
 #include "UDPPeer.h"
-//#include "Wire.h"
+#include "Wire.h"
 #include "Odo.h"
-//#include "TOF.h"
+#include "TOF.h"
 #include "Encoder_test.h"
 #include "Motor.h"
 #include "Encoder.h"
@@ -65,7 +65,7 @@ QueueHandle_t sendQueue;
 
 SemaphoreHandle_t sensorDoneSem;
 
-PID headingPID(0.05, 0.0, 0.0, -10, 10, true); // right+, left- for positive rotation
+PID headingPID(0.2, 0.0, 0.0, -10, 10, true); // right+, left- for positive rotation
 PID distancePID(0.05, 0.0, 0.0, -10, 10, false);
 
 double speed = 0.3;
@@ -131,9 +131,9 @@ void sensorTask(void *pvParameters) {
     }
     Serial.println();
 
-    vTaskDelay(pdMS_TO_TICKS(25));
+    // vTaskDelay(pdMS_TO_TICKS(25));
 
-    //drive->readSensors();
+    drive->readSensors();
     drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
 
     tofStruct.set(data); // single atomic write after all sensors are polled
@@ -475,22 +475,24 @@ void loop() {
 
   // dist = sqrt((x - 730) * (x - 730) + (y - 1080) * (y - 1080));
 
-  // Serial.print("heading: ");
-  // Serial.print(drive->otosPoseMeasurement.h);
+  Serial.print("heading: ");
+  Serial.println(drive->otosPoseMeasurement.h);
+  Serial.println(String("atan2:") + atan2(2227 - y, 127 - x));
 
-  // Serial.print(String("atan2: ") + atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846);
-
-  correction = clamp(headingPID.update(atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
+  correction = clamp(headingPID.update(atan2(2227 - y, 127 - x), drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
+  if (correction >=-.1 && correction <= .1){
+    correction = 0.0;
+  }
   // dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);
   
   // // Serial.print(", correction: ");
-  Serial.print(String("correction: ") + correction);
+  Serial.print(correction);
   // // Serial.print("\n");
   count++;
 
-  if (count > 50) {
-    //drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
-  }
+  // if (count > 50) {
+  //   drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
+  // }
   // drive->setSpeeds(0.0, 0.0);
 
   // x = mclPoseStruct.get().x;
@@ -509,7 +511,6 @@ void loop() {
 
   // Serial.print(", ");
   // Serial.print(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846);
-  
 
   // Serial.print("\n");
 

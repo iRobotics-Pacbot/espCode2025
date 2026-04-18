@@ -1,6 +1,5 @@
 #include <cmath>
-
-struct Wheels { double left, right; };
+#include "WallFollower.h"
 
 Wheels wall_follow(double dist_front, double dist_diagonal) {
     double dist_right = dist_diagonal * std::sin(M_PI / 4.0);

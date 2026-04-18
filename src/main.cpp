@@ -134,7 +134,7 @@ void sensorTask(void *pvParameters) {
     // vTaskDelay(pdMS_TO_TICKS(25));
 
     drive->readSensors();
-      //drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
+    drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
 
     tofStruct.set(data); // single atomic write after all sensors are polled
 
@@ -475,14 +475,16 @@ void loop() {
 
   // dist = sqrt((x - 730) * (x - 730) + (y - 1080) * (y - 1080));
 
-  // // Serial.print("heading: ");
-  // // Serial.print(drive->otosPoseMeasurement.h);
+  Serial.print("heading: ");
+  Serial.print(drive->otosPoseMeasurement.h);
+
+  Serial.print(String("atan2: ") + atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846);
 
   correction = clamp(headingPID.update(atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
   // dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);
   
   // // Serial.print(", correction: ");
-  Serial.print(correction);
+  Serial.print(String("correction: ") + correction);
   // // Serial.print("\n");
   count++;
 
@@ -507,6 +509,7 @@ void loop() {
 
   // Serial.print(", ");
   // Serial.print(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846);
+  
 
   // Serial.print("\n");
 

@@ -2,9 +2,9 @@
 #include <atomic>
 #include "dataTypes.h"
 #include "UDPPeer.h"
-#include "Wire.h"
+//#include "Wire.h"
 #include "Odo.h"
-#include "TOF.h"
+//#include "TOF.h"
 #include "Encoder_test.h"
 #include "Motor.h"
 #include "Encoder.h"
@@ -65,7 +65,7 @@ QueueHandle_t sendQueue;
 
 SemaphoreHandle_t sensorDoneSem;
 
-PID headingPID(0.2, 0.0, 0.0, -10, 10, true); // right+, left- for positive rotation
+PID headingPID(0.45, 0.0, 0.0, -10, 10, true); // right+, left- for positive rotation
 PID distancePID(0.05, 0.0, 0.0, -10, 10, false);
 
 double speed = 0.3;
@@ -133,7 +133,7 @@ void sensorTask(void *pvParameters) {
 
     // vTaskDelay(pdMS_TO_TICKS(25));
 
-    drive->readSensors();
+    //drive->readSensors();
     drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
 
     tofStruct.set(data); // single atomic write after all sensors are polled

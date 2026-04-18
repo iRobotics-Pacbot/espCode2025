@@ -2,7 +2,7 @@
 #include <atomic>
 #include "dataTypes.h"
 #include "UDPPeer.h"
-#include "Wire.h"
+//#include "Wire.h"
 #include "Odo.h"
 #include "TOF.h"
 #include "Encoder_test.h"
@@ -475,10 +475,10 @@ void loop() {
 
   // dist = sqrt((x - 730) * (x - 730) + (y - 1080) * (y - 1080));
 
-  Serial.print("heading: ");
-  Serial.print(drive->otosPoseMeasurement.h);
+  // Serial.print("heading: ");
+  // Serial.print(drive->otosPoseMeasurement.h);
 
-  Serial.print(String("atan2: ") + atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846);
+  // Serial.print(String("atan2: ") + atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846);
 
   correction = clamp(headingPID.update(atan2(2227 - y, 127 - x) * 180.0 / 3.14159265358979323846, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
   // dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);

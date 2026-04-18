@@ -4,7 +4,7 @@
 #include "UDPPeer.h"
 //#include "Wire.h"
 #include "Odo.h"
-#include "TOF.h"
+//#include "TOF.h"
 #include "Encoder_test.h"
 #include "Motor.h"
 #include "Encoder.h"
@@ -131,9 +131,9 @@ void sensorTask(void *pvParameters) {
     }
     Serial.println();
 
-    // vTaskDelay(pdMS_TO_TICKS(25));
+    vTaskDelay(pdMS_TO_TICKS(25));
 
-    drive->readSensors();
+    //drive->readSensors();
     drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
 
     tofStruct.set(data); // single atomic write after all sensors are polled

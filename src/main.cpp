@@ -232,341 +232,171 @@ void odometryTask(void* param)
 void setup() {
   // Setup Serial
   Serial.begin(115200);
+  randomSeed(micros());
 
-  // Setup Wire
-  Wire.begin(8, 9);
-  Wire.setClock(100000);
+}
 
-  //task class instantiation
-  pinMode(17, OUTPUT);
-  digitalWrite(17, HIGH);
+constexpr float LEARNING_RATE = 0.002f;
+constexpr float TOLERANCE = 0.0001f;
+constexpr unsigned MAX_STEPS = 20000;
+constexpr unsigned VARIABLE_COUNT = 200;
+constexpr unsigned PROGRESS_INTERVAL = 100;
 
-  odoStruct.init();
-  tofStruct.init();
-  mclPoseStruct.init();
-  veloStruct.init(); 
-  pathStruct.init();
+static float quadraticVariables[VARIABLE_COUNT];
+static float quadraticTarget[VARIABLE_COUNT];
+static float quadraticError[VARIABLE_COUNT];
+static float quadraticBasisProduct[VARIABLE_COUNT];
+static float quadraticGradient[VARIABLE_COUNT];
+static float quadraticDirection[VARIABLE_COUNT];
 
-  // pinMode(XSHUT_PIN, OUTPUT);
-  // digitalWrite(XSHUT_PIN, LOW);
-  // delay(10);
-  // digitalWrite(XSHUT_PIN, HIGH); // Wake up the sensor
-  // delay(10);
-    
-  // analogWriteFrequency(100000);
-  // analogWriteResolution(15);
-  myPeer = new UDPPeer(odoStruct, tofStruct, mclPoseStruct, pathStruct);
+float quadraticBasis(unsigned row, unsigned column) {
+  uint32_t value = 2166136261u;
+  value ^= row + 0x9e3779b9u;
+  value *= 16777619u;
+  value ^= column + 0x85ebca6bu;
+  value *= 16777619u;
+  return (static_cast<float>(value % 201u) - 100.0f) / 100.0f;
+}
 
-  // In setup():
-  sendQueue = xQueueCreate(10, 64); // 10 messages, 128 bytes each
-
-  sensorDoneSem = xSemaphoreCreateBinary();
-
-  // Give updTask more stack and have it drain the queue:
-// 
-
-  // if (motor == nullptr) {
-    // motor = new Motor(37, 35);
-    // motor = new Motor(15, 16);
-  // }
-  // encoder = new Encoder(36, 34);
-  // sensor1 = new VL53L4CX(&Wire, 38);
-
-  // sensor1->begin();
-  // sensor1->VL53L4CX_Off();
-  // sensor1->InitSensor(0x30); // Initialize and set I2C address to 0x30
-  // delay(10);
-
-  // sensor1->VL53L4CX_On();
-  // delay(10);
-  // sensor1->VL53L4CX_StartMeasurement();
-  // Serial.println("Sensor 1 Online at 0x30");
-
-
-  // tof = new TOF(tofStruct);
-  // odo = new Odo(odoStruct);
-  // xTaskCreate(updTask, "UDP Task", 2048, (void*)myPeer, 1, NULL);
-  // xTaskCreate(tofTask, "TOF Task", 2048, (void*)tof, 1, NULL);
-  // xTaskCreate(odoTask, "Odo Task", 2048, (void*)odo, 1, NULL);
-  // testEncoder(); //Added this for testing
-  // testUDP(myPeer);
-
-  Serial.println("Starting 6-sensor initialization...");
-
-  // initialize sensors one at a time
-
-  for (int i = 0; i < 6; i++) {
-    pinMode(xshutPins[i], OUTPUT);
-    digitalWrite(xshutPins[i], LOW);
+float quadraticLoss(const float variables[], const float target[]) {
+  float value = 0.0f;
+  for (unsigned row = 0; row < VARIABLE_COUNT; ++row) {
+    quadraticError[row] = variables[row] - target[row];
   }
-  delay(20);
 
-  for (int i = 0; i < 6; i++) {
-    digitalWrite(xshutPins[i], HIGH);
-    delay(10);
-
-    if (sensors[i].begin() != 0) {
-      Serial.print("Failed to begin sensor ");
-      Serial.println(i + 1);
+  for (unsigned basis = 0; basis < VARIABLE_COUNT; ++basis) {
+    quadraticBasisProduct[basis] = 0.0f;
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      quadraticBasisProduct[basis] +=
+          quadraticBasis(basis, variable) * quadraticError[variable];
     }
-
-    sensors[i].InitSensor(sensorAddresses[i] << 1);
-    sensors[i].VL53L4CX_StartMeasurement();
-    
-    Serial.print("Sensor "); 
-    Serial.print(i + 1);
-    Serial.print(" ready at address 0x");
-    Serial.println(sensorAddresses[i], HEX);
+    value += quadraticBasisProduct[basis] * quadraticBasisProduct[basis];
   }
+  for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+    value += 0.5f * quadraticError[variable] * quadraticError[variable];
+  }
+  return value;
+}
 
-  Serial.println("Setup complete!");
-
-  // Scan I2C bus to see what devices are present
-  Serial.println("Scanning I2C bus...");
-  for (byte address = 1; address < 127; address++) {
-    Wire.beginTransmission(address);
-    byte error = Wire.endTransmission();
-    if (error == 0) {
-      Serial.printf("I2C device found at address 0x%02X\n", address);
+void quadraticGradientAt(const float variables[], const float target[],
+                         float gradient[]) {
+  for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+    quadraticError[variable] = variables[variable] - target[variable];
+    gradient[variable] = quadraticError[variable];
+  }
+  for (unsigned basis = 0; basis < VARIABLE_COUNT; ++basis) {
+    quadraticBasisProduct[basis] = 0.0f;
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      quadraticBasisProduct[basis] +=
+          quadraticBasis(basis, variable) * quadraticError[variable];
+    }
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      gradient[variable] +=
+          2.0f * quadraticBasis(basis, variable) *
+          quadraticBasisProduct[basis];
     }
   }
-  
-  Wire.beginTransmission(0x6A);
-  byte err6A = Wire.endTransmission();
-  Serial.print("IMU at 0x6A: "); Serial.println(err6A);
-  
-  Wire.beginTransmission(0x6B);
-  byte err6B = Wire.endTransmission();
-  Serial.print("IMU at 0x6B: "); Serial.println(err6B);
+}
 
-  // Allow I2C bus to stabilize after TOF sensor initialization
-  delay(100);
-  
-  drive = new Drivetrain(37, 35, 15, 16, 36, 34, 13, 14);
-
-  xTaskCreate(sensorTask, "Sensor Task", 8192, NULL, 1, NULL);
-
-  // xTaskCreate(odometryTask, "Odometry Task", 8192, NULL, 1, NULL);
-  xTaskCreate(updTask, "UDP Task", 8192, (void*)myPeer, 1, NULL);
+void buildQuadraticProblem(float target[]) {
+  for (unsigned row = 0; row < VARIABLE_COUNT; ++row) {
+    target[row] = random(-500, 501) / 100.0f;
+  }
 }
 
 
 void loop() {  
-  double reference = atan2(2227 - y, 127 - x);
-  Serial.print(String("reference:") + reference);
-  // Serial.println("Hello, ESP8266!");
-  delay(100);
-  // motor->setThrottle(0.0);
-
-  // drive->setSpeeds(0.0, 0.0);
-
-  
-  // Serial.println(count);
-  // Serial.println("left");
-  // Serial.println(drive->encoderMeasurements.leftEncoderX);
-  // Serial.println("right");
-  // Serial.println(drive->encoderMeasurements.rightEncoderX);
-
-  // size_t strSize = 4; //keep this under 64
-  // char data[strSize] = "abcdefghijklmnopqrstuvwxyz"; 
-  // myPeer->sendGeneric(&drive->otosPoseMeasurement, sizeof(drive->otosPoseMeasurement));
-
-  // char buffer[128];
-
-  // latestTime = millis();
-
-  // snprintf(buffer, sizeof(buffer),
-  //           "%lu,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",
-  //           latestTime,
-  //           drive->otosPoseMeasurement.x, drive->otosPoseMeasurement.y, drive->otosPoseMeasurement.h,
-  //           drive->otosVelocityMeasurement.x,  drive->otosVelocityMeasurement.y,  drive->otosVelocityMeasurement.h,
-  //           drive->encoderMeasurements.leftEncoderX, drive->encoderMeasurements.rightEncoderX,
-  //           leftSpeed, rightSpeed
-  //         );
-  // Serial.println(buffer);
-  // if (myPeer != nullptr) {
-  //   myPeer->sendString(buffer, strlen(buffer));
-  // } else {
-  //   Serial.println("FAIL");
-  // }
-
-  // if (sendQueue != nullptr) {
-  //   // xQueueSend(sendQueue, buffer, 0); // non-blocking, drops if full
-  //   xQueueSend(sendQueue, "apple", 0); // non-blocking, drops if full
-  // }
-
-  // count++;
-
-  // if (count > 5) {
-  //   // Serial.println("reset");
-  //   leftSpeedTarget = dis(gen) * 2 - 1;
-  //   // Serial.println(random_val);
-  //   rightSpeedTarget = dis(gen) * 2 - 1;
-  //   // Serial.println(random_val);
-
-  //   // Serial.println(leftSpeedTarget);
-  //   // Serial.println(rightSpeedTarget);
-
-  //   // drive->setSpeeds(leftSpeed, rightSpeed);
-
-  //   count = 0;
-  // } else {
-  //   count++;
-  // }
-
-  // leftSpeed = (1.0 - alpha) * leftSpeed + alpha * leftSpeedTarget;
-  // rightSpeed = (1.0 - alpha) * rightSpeed + alpha * rightSpeedTarget;
-
-  // if (tofStruct.get().distances[1] != 0 && tofStruct.get().distances[5] != 0) {
-  //   leftSpeed = 0.6 * tofStruct.get().distances[1] / (tofStruct.get().distances[1] + tofStruct.get().distances[5]);
-  //   rightSpeed = 0.6 * tofStruct.get().distances[5] / (tofStruct.get().distances[1] + tofStruct.get().distances[5]);
-  // } else {
-  //   leftSpeed = 0.0;
-  //   rightSpeed = 0.0;
-  // }
-
-  // Serial.println();
-  // dist = tofStruct.get().distances[0];
-
-  // if (rotate) {
-  //   if (dist > 200) {
-  //     rotate = false;
-  //     leftSpeed = speed;
-  //     rightSpeed = speed;
-  //   }
-  // } else {
-  //   if (dist < 150 && dist > 0) {
-  //     rotate = true;
-  //     if (rand() < 0.5) {
-  //       leftSpeed = -speed;
-  //       rightSpeed = speed;
-  //     } else {
-  //       leftSpeed = speed;
-  //       rightSpeed = -speed;
-  //     }
-  //   }
-  // }
-
-  front = clamp(tofStruct.get().distances[0], 0.0, 500.0);
-  back = clamp(tofStruct.get().distances[3], 0.0, 500.0);
-
-  Wheels wheels = wall_follow(front, back);
-  leftSpeed = wheels.left;
-  rightSpeed = wheels.right;
-
-  Serial.println(leftSpeed);
-  Serial.println(rightSpeed);
-  Serial.println("-----------------");
-
-  // Serial.println(front);
-  // Serial.println(back);
-  // Serial.println(0.002 * (front - back));
-  // Serial.println(leftSpeed);
-  // Serial.println(rightSpeed);
-  // Serial.println("-----------------");
-
-  // 
-  // drive->setSpeeds(leftSpeed, rightSpeed);
-
-  // if (count < 50) {
-  //   drive->setSpeeds((double) 0.002 * (front / 2 - back), (double) 0.002 * (front / 2 - back));
-  // } else {
-  //   drive->setSpeeds(-0.7, 0.7);
-  // }
-
-  // Serial.println(count);
-
-  // count++;
-
-  // if (count > 60) {
-  //   count = 0;
-  // }
-
-  x = (1 - alpha) * x + alpha * (mclPoseStruct.get().x + drive->otosPoseMeasurement.x);
-  y = (1 - alpha) * y + alpha * (mclPoseStruct.get().y + drive->otosPoseMeasurement.y);
-
-  // dist = sqrt((x - 730) * (x - 730) + (y - 1080) * (y - 1080));
-
-  Serial.print("heading: ");
-  Serial.println(drive->otosPoseMeasurement.h);
-  Serial.println(String("atan2:") + atan2(2227 - y, 127 - x));
-
-  correction = clamp(headingPID.update(reference, drive->otosPoseMeasurement.h, 0.1), -0.7, 0.7);
-  if (correction >=-.1 && correction <= .1){
-    correction = 0.0;
+  for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+    quadraticVariables[variable] = 0.0f;
   }
-  // dist_control = clamp(distancePID.update(0, dist, 0.1), -0.7, 0.7);
-  
-  // // Serial.print(", correction: ");
-  Serial.print(correction);
-  // // Serial.print("\n");
-  count++;
+  buildQuadraticProblem(quadraticTarget);
 
-  // if (count > 50) {
-  //   drive->setSpeeds(clamp(correction - dist_control, -0.7, 0.7), clamp(-correction - dist_control, -0.7, 0.7));
-  // }
-  // drive->setSpeeds(0.0, 0.0);
+  float previousLoss = quadraticLoss(quadraticVariables, quadraticTarget);
+  bool converged = false;
 
-  // x = mclPoseStruct.get().x;
-  // y = mclPoseStruct.get().y;
+  Serial.printf("\nMinimize %u-variable random quadratic; target:", VARIABLE_COUNT);
+  for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+    Serial.printf(" %.3f", quadraticTarget[variable]);
+  }
+  Serial.println();
+  Serial.printf("step=0 loss=%.8f\n", previousLoss);
 
-  // Serial.print(x);
-  // Serial.print(", ");
-  // Serial.print(y);
-  // Serial.print(", ");
-  // Serial.print(clamp(correction, -0.7, 0.7));
-  // Serial.print(", ");
-  // Serial.print(clamp(dist_control, -0.7, 0.7));
+  const unsigned long convergenceStart = micros();
+  for (unsigned step = 1; step <= MAX_STEPS; ++step) {
+    const unsigned long stepStart = micros();
+    quadraticGradientAt(quadraticVariables, quadraticTarget,
+                        quadraticDirection);
 
-  // Serial.print(", ");
-  // Serial.print(drive->otosPoseMeasurement.h);
+    float alpha0 = 0.0f;
+    float alpha1 = LEARNING_RATE;
+    float derivative0 = 0.0f;
+    float derivative1 = 0.0f;
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      derivative0 -= quadraticDirection[variable] * quadraticDirection[variable];
+      quadraticVariables[variable] -= alpha1 * quadraticDirection[variable];
+    }
+    quadraticGradientAt(quadraticVariables, quadraticTarget, quadraticGradient);
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      derivative1 -= quadraticGradient[variable] * quadraticDirection[variable];
+      quadraticVariables[variable] += alpha1 * quadraticDirection[variable];
+    }
 
-  // Serial.print(", ");
-  // Serial.print(atan2(1080 - y, 730 - x) * 180.0 / 3.14159265358979323846);
+    float alpha = alpha1;
+    const float denominator = derivative1 - derivative0;
+    if (fabsf(denominator) > 0.00000001f) {
+      // Secant update: alpha = alpha1 - f(alpha1) * (alpha1-alpha0)/(f(alpha1)-f(alpha0)).
+      alpha = alpha1 - derivative1 * (alpha1 - alpha0) / denominator;
+    }
+    if (!isfinite(alpha) || alpha <= 0.0f) {
+      alpha = alpha1;
+    }
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      quadraticVariables[variable] -= alpha * quadraticDirection[variable];
+    }
 
-  // Serial.print("\n");
+    const float currentLoss = quadraticLoss(quadraticVariables, quadraticTarget);
 
-  // if (currentMillis % 1000 == )
-  // double random_val = dis(gen);
-  // std::cout << "Random double: " << random_val << std::endl;
-  
-  // myPeer->sendString(buffer, strlen(buffer));
+    if (!isfinite(currentLoss) || currentLoss > previousLoss) {
+      for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+        quadraticVariables[variable] += alpha * quadraticDirection[variable];
+      }
+      Serial.printf("step=%u rejected; loss=%.8f; alpha=%.8g; elapsed=%.3f s\n",
+                    step, currentLoss, alpha,
+                    (micros() - convergenceStart) / 1000000.0f);
+      continue;
+    }
+    if (currentLoss < TOLERANCE) {
+      Serial.printf("PASS: converged at step %u; loss < %.6f.\n",
+                    step, TOLERANCE);
+      converged = true;
+      break;
+    }
+    previousLoss = currentLoss;
+    if (step % PROGRESS_INTERVAL == 0) {
+      Serial.printf("step=%u; loss=%.8f; alpha=%.8g; step time=%.3f ms; elapsed=%.3f s\n",
+            step, currentLoss, alpha,
+                    (micros() - stepStart) / 1000.0f,
+                    (micros() - convergenceStart) / 1000000.0f);
+    }
+     }
 
-  // Serial.print(digitalRead(14));
-  // Serial.print(", ");
-  // Serial.print(digitalRead(13));
-  // Serial.print(", ");
-  // Serial.println(digitalRead(12));
+  const unsigned long convergenceTime = micros() - convergenceStart;
+  if (converged) {
+    Serial.printf("Convergence time: %lu us (%.3f ms, %.6f s)\n",
+                  convergenceTime, convergenceTime / 1000.0f,
+                  convergenceTime / 1000000.0f);
+    Serial.printf("Minimum loss: %.8f; solution:",
+                  quadraticLoss(quadraticVariables, quadraticTarget));
+    for (unsigned variable = 0; variable < VARIABLE_COUNT; ++variable) {
+      Serial.printf(" %.3f", quadraticVariables[variable]);
+    }
+    Serial.println();
+  } else {
+    Serial.println("Stopped without convergence.");
+  }
+  Serial.println("Restarting demo in 5 seconds.");
+  delay(5000);
 
-  // byte error;
-  // for (byte address = 1; address < 127; address++) {
-  //   Wire.beginTransmission(address);
-  //   error = Wire.endTransmission();
-
-  //   if (error == 0) {
-  //     Serial.printf("I2C device found at address 0x%02X\n", address);
-  //     // nDevices++;
-  //   } else {
-  //     Serial.println("error: ");
-  //     Serial.println(address);
-  //     Serial.println(error);
-  //   }
-  // }
-  // uint8_t NewDataReady = 0;
-  // VL53L4CX_MultiRangingData_t results1;
-
-  // Read Sensor 1
-  // sensor1->VL53L4CX_StartMeasurement();
-  // sensor1->VL53L4CX_GetMeasurementDataReady(&NewDataReady);
-  // if (NewDataReady) {
-  //   sensor1->VL53L4CX_GetMultiRangingData(&results1);
-  //   if (results1.NumberOfObjectsFound > 0) {
-  //     Serial.print("S1 Dist: ");
-  //     Serial.print(results1.RangeData[0].RangeMilliMeter);
-  //     Serial.print("mm | \n");
-  //   }
-  //   sensor1->VL53L4CX_ClearInterruptAndStartMeasurement();
-  // }
 }
 
 
